@@ -1,0 +1,423 @@
+{
+  "meta": {
+    "title": "Gestio CRM pour Centres Spécialisés au Maroc | Quittez Excel",
+    "description": "CRM pour centres autisme, TDAH et troubles d'apprentissage au Maroc. Dossiers, paiements, planning centralisés. En ligne en 48h. Sans engagement."
+  },
+  "a11y": {
+    "backToTop": "Retour en haut de la page",
+    "switchLanguage": "Changer de langue",
+    "openMenu": "Ouvrir le menu",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "module": "Module",
+    "review": "Avis",
+    "choosePlan": "Choisir une formule",
+    "pickDate": "Choisir une date"
+  },
+  "nav": {
+    "demo": "Démo",
+    "modules": "Modules",
+    "pricing": "Tarifs",
+    "faq": "FAQ",
+    "contact": "Contact",
+    "demoInteractive": "Démo interactive",
+    "navigation": "Navigation",
+    "bookDemo": "Réserver une démo",
+    "bookDemo20": "Réserver ma démo 20 min"
+  },
+  "previewNav": {
+    "dashboard": "Tableau de bord",
+    "calendar": "Calendrier",
+    "familles": "Parents",
+    "paiements": "Paiement",
+    "affiches": "Annonces",
+    "settings": "Paramètres"
+  },
+  "preview": {
+    "searchEllipsis": "Rechercher…",
+    "tableStage": "Stade",
+    "tablePayment": "Paiement",
+    "csvShort": "CSV",
+    "locked": {
+      "openCard": "Aperçu démo   connectez-vous pour accéder à cette vue.",
+      "quickAction": "« {{title}} »   disponible après connexion.",
+      "addClient": "Ajouter un client   disponible après connexion.",
+      "exportCsv": "Export CSV   disponible après connexion.",
+      "paidList": "Familles à jour   disponible après connexion.",
+      "unpaidList": "Impayés   disponible après connexion."
+    }
+  },
+  "hero": {
+    "titleLine1": "Gérez votre centre",
+    "titleHighlight": "sans Excel",
+    "titleLine2": "sans chaos.",
+    "subtitle": "Gestio est le CRM pensé pour les centres spécialisés au Maroc. Dossiers, paiements, planning tout au même endroit, accessible en 2 clics.",
+    "socialProof": "10+ centres actifs · 4.9/5 satisfaction",
+    "ctaPrimary": "Réserver ma démo gratuite",
+    "ctaSecondary": "Voir une démo live",
+    "trustServers": "Serveurs au Maroc",
+    "trust48h": "En ligne en 48h",
+    "trustNoCommit": "Sans engagement",
+    "promoLabel": "Promo",
+    "promoText": "-20% sur l'annuel",
+    "previewUrl": "gestio.ma · aperçu démo",
+    "live": "Live",
+    "specializedCenter": "Centre spécialisé",
+    "loginToAccess": "Connectez-vous pour accéder à votre espace.",
+    "loginToAccessReal": "Connectez-vous pour accéder à votre espace réel."
+  },
+  "demo": {
+    "badge": "Démo interactive sans compte requis",
+    "title": "Explorez Gestio maintenant.",
+    "subtitle": "Cliquez sur chaque module pour voir comment il fonctionne comme si c'était votre vrai tableau de bord.",
+    "liveDemo": "Démo live",
+    "adminRole": "Admin · Directeur",
+    "moduleOf": "Module",
+    "ctaText": "Cette démo vous a convaincu ? Réservez votre créneau avec vos propres données.",
+    "ctaButton": "Réserver ma démo 20 min, sans engagement",
+    "steps": [
+      {
+        "label": "Tableau de bord",
+        "headline": "Vos KPIs en temps réel",
+        "description": "Encaissé, impayés et retards en un coup d'œil, avec le montant exact en attente et la file des familles à relancer.",
+        "tag": "Vue d'ensemble"
+      },
+      {
+        "label": "Calendrier",
+        "headline": "L'année scolaire en un écran",
+        "description": "Jours fériés marocains synchronisés automatiquement, vacances scolaires et planifications de votre équipe sur un même calendrier.",
+        "tag": "Agenda"
+      },
+      {
+        "label": "Parents",
+        "headline": "Familles et élèves en 2 clics",
+        "description": "Chaque famille avec tous ses élèves, leur niveau, leurs services et le reste à payer. Ajoutez un élève sans quitter la fiche.",
+        "tag": "Gestion des familles"
+      },
+      {
+        "label": "Paiement",
+        "headline": "Zéro impayé oublié",
+        "description": "Reçus numérotés automatiquement, suivi mensuel par famille et relances en un clic. Plus besoin de courir après les paiements.",
+        "tag": "Paiements & relances"
+      },
+      {
+        "label": "Annonces",
+        "headline": "Votre équipe au complet",
+        "description": "Postes, départements, contrats et congés de chaque employé, réunis dans une fiche claire et à jour.",
+        "tag": "Personnel"
+      },
+      {
+        "label": "Paramètres",
+        "headline": "Votre centre, vos règles",
+        "description": "Niveaux et frais, services, réduction fratrie et échéance des paiements : tout se règle une fois, et le reste suit.",
+        "tag": "Configuration"
+      }
+    ]
+  },
+  "pain": {
+    "badge": "La réalité du terrain",
+    "title": "Vous vous reconnaissez dans ces situations ?",
+    "subtitle": "Les directeurs de centres spécialisés nous racontent tous la même chose. Ce n'est pas un manque de compétence c'est un manque d'outil adapté.",
+    "solutionHint": "Il existe une solution conçue exactement pour votre réalité.",
+    "items": [
+      {
+        "title": "Dossiers éparpillés",
+        "quote": "« Dans quel Excel est le dossier Benali ? »",
+        "text": "Chaque fichier est sur un ordinateur différent, dans des versions différentes. Retrouver une information prend 10 minutes."
+      },
+      {
+        "title": "Impayés non détectés",
+        "quote": "« 3 dossiers n'ont pas réglé leur mensualité depuis 2 mois. »",
+        "text": "Vous le découvrer trop tard. Sans suivi automatique, les retards s'accumulent et les conversations deviennent gênantes."
+      },
+      {
+        "title": "Nouvelles demandes perdues",
+        "quote": "« J'avais noté ça quelque part… »",
+        "text": "Un parent appelle, vous notez sur un post-it. Trois jours après, la note a disparu. Cette inscription est perdue."
+      }
+    ]
+  },
+  "solution": {
+    "badge": "La solution",
+    "title": "Gestio centralise tout.",
+    "titleMuted": "Un seul tableau de bord.",
+    "subtitle": "Fini les outils éparpillés. Gestio a été conçu de A à Z pour les centres spécialisés avec les contraintes réelles des directeurs en tête.",
+    "benefits": [
+      "Tous les dossiers en un seul endroit, accessibles en 2 clics",
+      "Suivi des nouvelles demandes pour ne plus jamais perdre une inscription",
+      "Suivi des paiements automatisé avec alertes d'impayés en temps réel"
+    ],
+    "cta": "Réserver ma démo 20 min, sans engagement",
+    "stats": [
+      { "value": "10+", "label": "centres actifs", "sub": "au Maroc" },
+      { "value": "6", "label": "modules intégrés", "sub": "tout-en-un" },
+      { "value": "< 48h", "label": "mise en service", "sub": "accompagnée" },
+      { "value": "100%", "label": "adapté au Maroc", "sub": "marché local" }
+    ]
+  },
+  "modules": {
+    "badge": "Modules",
+    "title": "Tout ce dont votre centre a besoin.",
+    "subtitle": "6 modules intégrés conçus pour les réalités d'un centre spécialisé. En ligne en 48h. Formé avec vous. Aucun développeur requis.",
+    "seeInDemo": "Voir dans la démo →",
+    "exploreAll": "Explorer tous les modules en démo",
+    "items": [
+      {
+        "title": "Tableau de bord",
+        "benefit": "Tout votre centre en un regard",
+        "text": "Dès que vous ouvrez Gestio, vous voyez ce qui se passe : combien de dossiers actifs, combien d'impayés, quels rendez-vous sont prévus aujourd'hui. Aucun rapport à générer."
+      },
+      {
+        "title": "Paiements",
+        "benefit": "Zéro impayé qui passe entre les mailles",
+        "text": "Gestio génère les reçus, suit ce que chaque dossier doit régler chaque mois et envoie des relances automatiques. Vous n'avez plus à courir après les paiements en retard."
+      },
+      {
+        "title": "Équipe",
+        "benefit": "Vos collaborateurs organisés simplement",
+        "text": "Contrats, rôles et départements de votre équipe centralisés en un endroit. Chaque membre accède uniquement à ce qui le concerne, sans réglages compliqués."
+      },
+      {
+        "title": "Rendez-vous",
+        "benefit": "Un planning sans conflits ni oublis",
+        "text": "Gérez les demandes de rendez-vous et le planning de toute votre équipe depuis un seul écran. Les confirmations partent automatiquement, vous n'avez rien à faire manuellement."
+      },
+      {
+        "title": "Dossiers",
+        "benefit": "Fini les dossiers éparpillés",
+        "text": "Chaque dossier est complet : enfant, contrat, historique des séances et documents. Vous trouvez tout en moins de 10 secondes, depuis n'importe quel appareil."
+      },
+      {
+        "title": "Planifications",
+        "benefit": "Tous vos événements centralisés",
+        "text": "Conseils pédagogiques, ateliers parents, sorties, formations internes planifiez et retrouvez chaque événement en un coup d'œil, sans risque d'oubli."
+      }
+    ]
+  },
+  "testimonials": {
+    "badge": "Avis vérifiés",
+    "title": "Ce que disent nos directeurs.",
+    "subtitle": "Des centres à travers tout le Maroc qui utilisent Gestio au quotidien.",
+    "stats": [
+      { "value": "10+", "label": "centres actifs" },
+      { "value": "4.9 / 5", "label": "note moyenne" },
+      { "value": "< 48h", "label": "mise en service" },
+      { "value": "100%", "label": "recommandent Gestio" }
+    ],
+    "ctaText": "Votre centre pourrait être le prochain. 5 créneaux disponibles cette semaine.",
+    "ctaButton": "Réserver ma démo 20 min, sans engagement",
+    "items": [
+      {
+        "name": "Fatima Benali",
+        "role": "Directrice",
+        "center": "Centre Lumière",
+        "city": "Casablanca",
+        "date": "Il y a 2 semaines",
+        "highlight": "Zéro Excel depuis 3 mois",
+        "quote": "Avant Gestio, je passais mes lundis matin à réconcilier trois fichiers Excel différents. Maintenant tout est là, en temps réel. Je me concentre sur les enfants, pas sur l'administratif."
+      },
+      {
+        "name": "Karim Mounir",
+        "role": "Administrateur",
+        "center": "Centre Avenir",
+        "city": "Rabat",
+        "date": "Il y a 1 mois",
+        "highlight": "−40 % d'impayés en 2 mois",
+        "quote": "Le module paiements a tout changé. On a réduit les impayés de 40 % grâce aux relances automatiques. L'export CSV nous fait gagner une demi-journée chaque mois."
+      },
+      {
+        "name": "Samira Raji",
+        "role": "Directrice",
+        "center": "Institut Espoir",
+        "city": "Marrakech",
+        "date": "Il y a 3 semaines",
+        "highlight": "En ligne en moins de 48h",
+        "quote": "Ce qui m'a convaincue c'est la simplicité. Mon équipe n'est pas technique mais tout le monde était à l'aise dès le premier jour. La mise en place a pris moins de 48 heures."
+      },
+      {
+        "name": "Youssef El Fassi",
+        "role": "Co-fondateur",
+        "center": "Centre Nour",
+        "city": "Fès",
+        "date": "Il y a 5 jours",
+        "highlight": "Zéro inscription perdue depuis l'adoption",
+        "quote": "On ne perd plus aucune demande depuis qu'on utilise Gestio. Avant, un post-it tombait et le contact disparaissait. Maintenant chaque dossier est suivi jusqu'à l'inscription."
+      },
+      {
+        "name": "Houda Alaoui",
+        "role": "Responsable administrative",
+        "center": "Centre Rayane",
+        "city": "Agadir",
+        "date": "Il y a 2 mois",
+        "highlight": "Support réactif et formation incluse",
+        "quote": "L'équipe Gestio nous a accompagnés pas à pas. La formation était incluse, le paramétrage fait avec nous. Je recommande à tous les centres qui veulent se moderniser sans prise de tête."
+      },
+      {
+        "name": "Anas Chraibi",
+        "role": "Directeur",
+        "center": "Institut Al Amal",
+        "city": "Tanger",
+        "date": "Il y a 3 mois",
+        "highlight": "Accessible depuis n'importe quel appareil",
+        "quote": "Je gère mon centre depuis mon téléphone quand je suis en déplacement. Le tableau de bord s'affiche parfaitement sur mobile. C'est devenu indispensable."
+      },
+      {
+        "name": "Nadia Berrada",
+        "role": "Directrice pédagogique",
+        "center": "Centre Soleil",
+        "city": "Meknès",
+        "date": "Il y a 6 semaines",
+        "highlight": "Dossiers ultra-clairs et accessibles",
+        "quote": "Chaque dossier est complet : enfant, historique, documents. En une recherche je trouve tout. Mes thérapeutes n'ont plus à me demander des informations basiques."
+      },
+      {
+        "name": "Omar Tahir",
+        "role": "Fondateur",
+        "center": "Centre Wafa",
+        "city": "Casablanca",
+        "date": "Il y a 1 mois",
+        "highlight": "Excellent rapport qualité/prix",
+        "quote": "Pour le prix, on a un outil qui rivalise avec ce qu'on trouve à l'étranger. Et tout est pensé pour le Maroc : les montants, le contexte, le support en français et en arabe."
+      }
+    ]
+  },
+  "pricing": {
+    "badge": "Tarifs",
+    "title": "Des formules claires et transparentes.",
+    "subtitle": "Prix de départ transparents adaptés si votre centre a des besoins spécifiques après un appel de 20 min.",
+    "monthly": "Mensuel",
+    "yearly": "Annuel",
+    "yearlyDiscount": "−2 MOIS",
+    "billingYearly": "Facturation annuelle · 2 mois offerts",
+    "billingMonthly": "Facturation mensuelle · sans engagement",
+    "popular": "Populaire",
+    "onboardingOffer": "Onboarding offert jusqu'au 30 juin",
+    "custom": "Sur mesure",
+    "perYear": "MAD/ an HT",
+    "perMonth": "MAD/ mois HT",
+    "yearlyEquiv": "Soit environ",
+    "yearlyEquivSuffix": "ramené sur 10 mois",
+    "perMonthShort": " MAD/ mois",
+    "planLabel": "formule",
+    "of": "sur",
+    "miniFaq": [
+      {
+        "q": "Puis-je payer mensuellement ?",
+        "a": "Oui, les deux options sont disponibles. L'annuel vous offre 2 mois offerts."
+      },
+      {
+        "q": "Y a-t-il des frais cachés ?",
+        "a": "Non. Le prix affiché inclut l'onboarding, la formation et le support. Aucune surprise."
+      },
+      {
+        "q": "Que se passe-t-il si mon centre grandit ?",
+        "a": "Passez de Essentiel à Pro en un clic, sans perdre vos données. Notre équipe vous accompagne."
+      }
+    ],
+    "plans": [
+      {
+        "id": "essentiel",
+        "name": "Essentiel",
+        "blurb": "Jusqu'à ~500 dossiers actifs. Un seul administrateur.",
+        "features": ["CRM dossiers & élèves", "Planning & rendez-vous", "Rapports de base", "Support par email"],
+        "cta": "Démarrer avec Essentiel →"
+      },
+      {
+        "id": "pro",
+        "name": "Pro",
+        "blurb": "Centres actifs : équipe multi-rôles et pilotage renforcé.",
+        "features": ["Tout Essentiel", "Paiements & relances auto", "Suivi des nouvelles demandes", "Exports & tableaux avancés", "Support prioritaire", "✓ Onboarding + Formation + Support inclus"],
+        "cta": "Démarrer avec Pro le plus populaire →"
+      },
+      {
+        "id": "reseau",
+        "name": "Réseau",
+        "blurb": "Multi-sites, groupes et besoins sur mesure.",
+        "features": ["SLA dédié", "Intégrations & API", "Formation des équipes", "Accompagnement au déploiement"],
+        "cta": "Parler à un expert"
+      }
+    ]
+  },
+  "faq": {
+    "badge": "FAQ",
+    "title": "Questions fréquentes",
+    "subtitle": "Ce qu'il faut savoir avant de nous contacter.",
+    "items": [
+      {
+        "q": "Ma secrétaire peut-elle utiliser Gestio sans formation ?",
+        "a": "Oui. Gestio a été conçu pour les équipes non-techniques. L'interface est intuitive, et nous assurons une formation incluse à la mise en service. La plupart des secrétaires sont autonomes en moins d'une heure."
+      },
+      {
+        "q": "Puis-je exporter mes données si je quitte Gestio ?",
+        "a": "Absolument. Toutes vos données (dossiers, paiements, historique) sont exportables en CSV à tout moment. Vous n'êtes jamais pris en otage. Votre centre reste propriétaire de ses données."
+      },
+      {
+        "q": "Combien de dossiers le logiciel peut-il gérer ?",
+        "a": "Essentiel supporte jusqu'à ~500 dossiers actifs. Pro est sans limite pratique. Réseau est conçu pour les groupes multi-sites. Contactez-nous pour un diagnostic personnalisé."
+      },
+      {
+        "q": "Y a-t-il une application mobile ?",
+        "a": "Gestio est entièrement responsive il fonctionne parfaitement sur mobile et tablette depuis votre navigateur, sans installation. Vous gérez votre centre depuis n'importe quel appareil."
+      },
+      {
+        "q": "Gestio fonctionne-t-il en arabe ?",
+        "a": "Oui. Vous pouvez basculer entre le français et l'arabe depuis l'icône de langue en bas de l'écran. Le support reste disponible dans les deux langues."
+      },
+      {
+        "q": "Comment sont protégées mes données (RGPD / Maroc) ?",
+        "a": "Toutes les données sont chiffrées et hébergées sur des serveurs sécurisés. Nous appliquons les bonnes pratiques RGPD adaptées au contexte marocain (loi 09-08). Aucune donnée n'est partagée avec des tiers."
+      }
+    ]
+  },
+  "contact": {
+    "badge": "Démo gratuite",
+    "title": "20 minutes. Votre centre dans Gestio. En direct.",
+    "subtitle": "Choisissez une date et laissez-nous vos coordonnées on vous montre Gestio avec vos cas concrets, sans engagement.",
+    "phoneMorocco": "07 77 77 74 28 Maroc",
+    "website": "eiden-group.com",
+    "email": "contact@eiden-group.com",
+    "address": "Agadir Bay, Technopole 1 Bloc B, Agadir 80000",
+    "bullets": [
+      "Présentation personnalisée selon votre type de centre",
+      "Réponse garantie sous 2h ouvrées",
+      "Aucun engagement requis",
+      "Les créneaux partent vite réservez le vôtre"
+    ],
+    "qr": {
+      "title": "Appel direct",
+      "subtitle": "Scannez pour nous appeler",
+      "callNow": "Appeler maintenant"
+    },
+    "form": {
+      "heading": "Réservez votre démo",
+      "centerLabel": "Nom du centre *",
+      "centerPlaceholder": "Centre Lumière",
+      "emailLabel": "Email *",
+      "emailPlaceholder": "vous@votre-centre.ma",
+      "phoneLabel": "Téléphone *",
+      "phonePlaceholder": "06 12 34 56 78",
+      "dateLabel": "Date souhaitée *",
+      "datePlaceholder": "Choisir une date",
+      "messageLabel": "Message (optionnel)",
+      "messagePlaceholder": "Parlez-nous de votre centre, du nombre de dossiers, de vos besoins…",
+      "submit": "Réserver ma démo →",
+      "submitting": "Envoi en cours…",
+      "privacy": "Données sécurisées · Réponse sous 2h · Sans engagement",
+      "successTitle": "Demande envoyée !",
+      "successText": "Merci ! Un email de confirmation vous a été envoyé. Notre équipe vous recontacte sous 2h ouvrées.",
+      "retry": "Nouvelle demande",
+      "errorRequired": "Merci de remplir tous les champs obligatoires.",
+      "errorEmail": "Merci de saisir une adresse email valide.",
+      "errorGeneric": "Une erreur est survenue. Merci de réessayer ou de nous appeler."
+    }
+  },
+  "footer": {
+    "tagline": "La plateforme de gestion tout-en-un pour centres spécialisés. Dossiers · Paiements · Planning.",
+    "navigation": "Navigation",
+    "contact": "Contact",
+    "bookDemo": "Réserver une démo",
+    "copyright": "© 2026 Gestio · Tous droits réservés",
+    "phoneMorocco": "07 77 77 74 28 (Maroc)",
+    "website": "eiden-group.com"
+  }
+}

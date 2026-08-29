@@ -1,0 +1,269 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  /* Skema's brand guide specifies Poppins as the single typeface (no separate
+     display face) — font-display exists only so ported dashboard headings/KPI
+     numbers, which use that utility, render in Poppins instead of falling
+     through unstyled. */
+  --font-display: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-hand: "Caveat", cursive;
+  /* Official SKEMA brand guidelines v1.0 (Mai 2025) — exact hex values. */
+  --color-nuit: #001b3d;
+  --color-violet: #6c4df6;
+  --color-turquoise: #17b3a6;
+  --color-corail: #ff666b;
+  --color-ocre: #ffb347;
+  --color-bleu-doux: #e8f1ff;
+  --color-lavande: #f0ecff;
+  --color-menthe: #e6faf7;
+  --color-peche: #fff3e6;
+  --color-papier: #ffffff;
+  --color-gris: #4b5563;
+  --color-gris-clair: #f1f3f6;
+}
+
+:root {
+  --radius: 1.5rem;
+  --background: var(--color-papier);
+  --foreground: var(--color-nuit);
+  --card: #ffffff;
+  --card-foreground: var(--color-nuit);
+  --popover: #ffffff;
+  --popover-foreground: var(--color-nuit);
+  --primary: var(--color-violet);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-lavande);
+  --secondary-foreground: var(--color-nuit);
+  --muted: var(--color-gris-clair);
+  --muted-foreground: var(--color-gris);
+  --accent: var(--color-menthe);
+  --accent-foreground: var(--color-nuit);
+  --destructive: var(--color-corail);
+  --destructive-foreground: #ffffff;
+  --border: color-mix(in srgb, var(--color-nuit) 10%, transparent);
+  --input: color-mix(in srgb, var(--color-nuit) 10%, transparent);
+  --ring: var(--color-violet);
+  --chart-1: var(--color-violet);
+  --chart-2: var(--color-turquoise);
+  --chart-3: var(--color-corail);
+  --chart-4: var(--color-ocre);
+  --chart-5: var(--color-nuit);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ---------- SKEMA scrapbook design system ---------- */
+
+@utility dots {
+  background-image: radial-gradient(color-mix(in srgb, var(--color-nuit) 14%, transparent) 1.3px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+
+@utility paper {
+  background-color: var(--color-papier);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-nuit) 6%, transparent),
+    0 18px 40px -22px color-mix(in srgb, var(--color-nuit) 35%, transparent);
+}
+
+@utility ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 27px,
+    color-mix(in srgb, var(--color-violet) 14%, transparent) 27px 28px
+  );
+}
+
+@utility grid-paper {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-nuit) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-nuit) 7%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@utility tape {
+  &::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -0.85rem;
+    width: 6.5rem;
+    height: 1.7rem;
+    translate: -50% 0;
+    rotate: -3deg;
+    background: color-mix(in srgb, var(--color-ocre) 55%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, white 35%, transparent);
+    clip-path: polygon(3% 0, 97% 4%, 100% 96%, 0 100%);
+  }
+}
+
+@utility tape-violet {
+  &::before {
+    background: color-mix(in srgb, var(--color-violet) 35%, transparent);
+  }
+}
+
+@utility tape-turquoise {
+  &::before {
+    background: color-mix(in srgb, var(--color-turquoise) 45%, transparent);
+  }
+}
+
+@utility tape-corail {
+  &::before {
+    background: color-mix(in srgb, var(--color-corail) 42%, transparent);
+  }
+}
+
+/**
+ * Freely-positionable washi tape strip — unlike `tape` (a fixed top-center
+ * ::before on the card itself), `scotch` is a plain element you position with
+ * ordinary Tailwind classes (e.g. `scotch -top-3 left-8 -rotate-6`).
+ */
+@utility scotch {
+  position: absolute;
+  height: 1.75rem;
+  width: 5.5rem;
+  background-color: color-mix(in srgb, var(--color-ocre) 45%, white);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-nuit) 10%, transparent);
+  opacity: 0.9;
+  clip-path: polygon(3% 0, 97% 4%, 100% 96%, 0 100%);
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-9px) rotate(calc(var(--tilt, 0deg) * -1)); }
+}
+
+@utility bob {
+  animation: bob 7s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@utility rise {
+  animation: rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
