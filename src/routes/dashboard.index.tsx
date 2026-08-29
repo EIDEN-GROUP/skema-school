@@ -127,6 +127,7 @@ function CrmDash() {
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [relanceIds, setRelanceIds] = useState<string[]>([]);
   const [relanceExpanded, setRelanceExpanded] = useState(false);
+  const [pendingExpanded, setPendingExpanded] = useState(false);
   const [relancePeriode, setRelancePeriode] = useState("Mai 2026 · frais mensuels");
 
   // Which money series are drawn. Clicking a legend chip toggles one on/off.
@@ -727,7 +728,7 @@ function CrmDash() {
             </p>
           ) : (
             <ul className="divide-y divide-[#001B3D]/8">
-              {pendingDues.map((d) => (
+              {(pendingExpanded ? pendingDues : pendingDues.slice(0, 6)).map((d) => (
                 <li key={d.id} className="px-4 py-3.5 sm:px-6">
                   <div className="flex items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#001B3D]/8 text-xs font-bold text-[#001B3D]">
@@ -785,6 +786,30 @@ Impayé
                   </div>
                 </li>
               ))}
+              {pendingDues.length > 6 ? (
+                <li className="px-4 py-3 sm:px-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPendingExpanded((v) => !v)}
+                      aria-expanded={pendingExpanded}
+                      className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15"
+                    >
+                      {pendingExpanded
+                        ? "Afficher moins"
+                        : `Voir les ${pendingDues.length} familles`}
+                      <ArrowDown className={cn("h-3.5 w-3.5 transition-transform", pendingExpanded && "rotate-180")} />
+                    </button>
+                    <Link
+                      to="/dashboard/familles"
+                      search={{ statut: "retard" }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+                    >
+                      Ouvrir la liste complète <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                </li>
+              ) : null}
             </ul>
           )}
         </div>

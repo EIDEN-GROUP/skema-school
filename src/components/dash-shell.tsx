@@ -194,7 +194,7 @@ function ShellNotifications() {
                   </button>
                 ) : null}
                 <button type="button" onClick={() => setSendOpen(true)}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#6C4DF6] px-4 py-1.5 text-xs font-bold text-[#001B3D] transition hover:brightness-105">
+                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#6C4DF6] px-4 py-1.5 text-xs font-bold text-white transition hover:brightness-105">
                   <Send className="h-3.5 w-3.5" /> Envoyer
                 </button>
               </div>
@@ -440,7 +440,7 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
                 {t.common.cancel}
               </button>
               <button type="submit" disabled={!valid || sendMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-full bg-[#6C4DF6] px-5 py-2 text-sm font-bold text-[#001B3D] shadow-[0_14px_30px_-14px_rgba(107,165,58,0.7)] transition hover:brightness-105 disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-full bg-[#6C4DF6] px-5 py-2 text-sm font-bold text-white shadow-[0_14px_30px_-14px_rgba(108,77,246,0.6)] transition hover:brightness-105 disabled:opacity-50">
                 <Send className="h-4 w-4" />
                 {sendMutation.isPending ? "Envoi..." : "Envoyer"}
               </button>
