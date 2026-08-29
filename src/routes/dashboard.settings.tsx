@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Save, Percent, Calendar, Package, GraduationCap, X, BadgeDollarSign, ChevronDown, Upload, FileText, Image as ImageIcon, GripVertical, Maximize2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/settings")({
-  head: () => ({ meta: [{ title: "Paramètres - CRM" }] }),
+  head: () => ({ meta: [{ title: "Paramètres · SKEMA" }] }),
   component: SettingsPage,
 });
 
@@ -71,9 +71,34 @@ function Section({
   );
 }
 
+const SETTINGS_TABS = [
+  {
+    id: "scolarite",
+    label: "Scolarité & tarifs",
+    icon: GraduationCap,
+    hint: "Niveaux, services, frais et remise fratrie — la base du calcul des frais.",
+  },
+  {
+    id: "paiements",
+    label: "Paiements",
+    icon: BadgeDollarSign,
+    hint: "Les 3 délais qui décident des statuts : échéance, grâce, escalade.",
+  },
+  {
+    id: "etablissement",
+    label: "Établissement",
+    icon: Package,
+    hint: "Coordonnées de l'école et documents officiels.",
+  },
+  { id: "recu", label: "Reçu", icon: FileText, hint: "Le modèle de reçu envoyé aux familles." },
+] as const;
+
 function SettingsPage() {
+  const [tab, setTab] = useState<(typeof SETTINGS_TABS)[number]["id"]>("scolarite");
+  const active = SETTINGS_TABS.find((t) => t.id === tab)!;
+
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 pb-8 sm:space-y-8">
+    <div className="mx-auto w-full max-w-4xl pb-8">
       <header className="relative">
         <Sticker name="gear" tilt={-6} className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block" />
         <p className={eyebrowClass}>Configuration</p>
@@ -81,15 +106,53 @@ function SettingsPage() {
           Paramètres
         </h1>
       </header>
-      <div className="space-y-4 sm:space-y-6">
-        <LevelsSection />
-        <ServicesSection />
-        <FraisSection />
-        <SiblingDiscountSection />
-        <PaymentDueSection />
-        <SchoolInfoSection />
-        <DocumentsSection />
-        <PdfTemplateEditorSection />
+
+      {/* Barre d'onglets — collante en haut du contenu */}
+      <div className="sticky top-0 z-20 mt-5 border-b border-[#001B3D]/10 bg-papier/90 backdrop-blur-md">
+        <div className="flex gap-1 overflow-x-auto scroll-touch">
+          {SETTINGS_TABS.map((t) => {
+            const on = t.id === tab;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                aria-current={on}
+                className={cn(
+                  "relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-3 text-sm font-medium transition-colors",
+                  on ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <t.icon className="h-4 w-4 shrink-0" />
+                {t.label}
+                {on ? (
+                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[#6C4DF6]" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm text-muted-foreground">{active.hint}</p>
+
+      <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-6">
+        {tab === "scolarite" && (
+          <>
+            <LevelsSection />
+            <ServicesSection />
+            <FraisSection />
+            <SiblingDiscountSection />
+          </>
+        )}
+        {tab === "paiements" && <PaymentDueSection />}
+        {tab === "etablissement" && (
+          <>
+            <SchoolInfoSection />
+            <DocumentsSection />
+          </>
+        )}
+        {tab === "recu" && <PdfTemplateEditorSection />}
       </div>
     </div>
   );
@@ -291,7 +354,7 @@ function LevelsSection() {
         </div>
       }
     >
-      <div className="divide-y divide-[#001B3D]/8">
+      <div className="max-h-[26rem] divide-y divide-[#001B3D]/8 overflow-y-auto scroll-touch">
         {levels?.map((l) =>
           editId === l.id ? (
             <div key={l.id} className={rowClass}>
