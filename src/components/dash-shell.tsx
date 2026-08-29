@@ -40,6 +40,8 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  User,
+  ShieldCheck,
   ExternalLink,
   RefreshCw,
   Send,
@@ -467,6 +469,22 @@ const NAV_ICON_COLOR: Record<string, string> = {
 };
 const navIconColor = (to: string) => NAV_ICON_COLOR[to] ?? "#6C4DF6";
 
+/** Signed-in user's avatar — a person icon, or a shield for superadmins. */
+function RoleAvatar({ className }: { className?: string }) {
+  const { role } = useAuth();
+  const Icon = role === "superadmin" ? ShieldCheck : User;
+  return (
+    <span
+      className={cn(
+        "grid shrink-0 place-items-center rounded-full bg-nuit text-white shadow-[0_10px_20px_-10px_rgba(0,27,61,0.5)]",
+        className,
+      )}
+    >
+      <Icon className="h-4 w-4" strokeWidth={2} />
+    </span>
+  );
+}
+
 function topNavItemActive(pathname: string, to: string) {
   if (to === "/dashboard")
     return pathname === "/dashboard" || pathname === "/dashboard/";
@@ -679,9 +697,7 @@ export function DashShell({
 
           <div className="mt-auto flex flex-col gap-3 border-t border-nuit/8 pt-4">
             <div className={cn("flex items-center gap-2.5", railCollapsed && "justify-center")}>
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-nuit text-sm font-semibold text-white shadow-[0_10px_20px_-10px_rgba(0,27,61,0.5)]">
-                {((user?.user_metadata?.name || user?.email || "A"))!.slice(0, 1).toUpperCase()}
-              </div>
+              <RoleAvatar className="h-9 w-9" />
               {!railCollapsed && (
                 <p className="min-w-0 truncate text-sm font-medium text-nuit">
                   {(user?.user_metadata?.name || user?.email || "admin")}
@@ -713,9 +729,7 @@ export function DashShell({
             </Link>
             <div className="flex shrink-0 items-center gap-2">
               {hideNotifications ? null : <ShellNotifications />}
-              <div className="grid h-9 w-9 place-items-center rounded-full bg-nuit text-sm font-semibold text-white shadow-[0_10px_20px_-10px_rgba(0,27,61,0.5)] lg:hidden">
-                {((user?.user_metadata?.name || user?.email || "A"))!.slice(0, 1).toUpperCase()}
-              </div>
+              <RoleAvatar className="h-9 w-9 lg:hidden" />
               <button
                 type="button"
                 onClick={handleLogout}
@@ -789,9 +803,7 @@ export function DashShell({
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium leading-none text-foreground">{(user?.user_metadata?.name || user?.email || "Admin")}</p>
               </div>
-              <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground grid place-items-center text-sm font-medium">
-                {((user?.user_metadata?.name || user?.email || "A"))!.slice(0, 1).toUpperCase()}
-              </div>
+              <RoleAvatar className="h-9 w-9" />
             </div>
           </div>
         </header>
