@@ -12,4 +12,18 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // On Vercel (VERCEL=1 in the build env) emit the Build Output API layout so the
+  // platform auto-deploys it with no vercel.json. Local builds are untouched.
+  // The wrapper config skips Nitro unless `nitro` is set explicitly, and its
+  // default output dirs (dist/*) don't match BOA — so we pass the exact dirs.
+  nitro: process.env.VERCEL
+    ? {
+        preset: "vercel",
+        output: {
+          dir: ".vercel/output",
+          serverDir: ".vercel/output/functions/__server.func",
+          publicDir: ".vercel/output/static",
+        },
+      }
+    : undefined,
 });
