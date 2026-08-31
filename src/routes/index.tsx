@@ -169,17 +169,23 @@ const tarifs = [
   },
 ] as const;
 
-/** Prix HT en MAD, par formule → effectif → { m: mensuel, y: annuel }. */
+/**
+ * Prix HT en MAD, par formule → effectif → { m: mensuel, y: annuel }.
+ * Base 100 élèves = le tarif de départ. Palier suivant = ×2 (jusqu'à 250,
+ * soit 2,5× l'effectif), puis ×3 (jusqu'à 500, soit 5× l'effectif) : une
+ * remise de volume est déjà intégrée. Pro = toujours 2× Essentiel.
+ * Annuel = 10 mois payés (2 mois offerts).
+ */
 const PRICE = {
   essentiel: {
     100: { m: 1000, y: 10000 },
-    250: { m: 1800, y: 18000 },
-    500: { m: 2600, y: 26000 },
+    250: { m: 2000, y: 20000 },
+    500: { m: 3000, y: 30000 },
   },
   pro: {
     100: { m: 2000, y: 20000 },
-    250: { m: 3600, y: 36000 },
-    500: { m: 5200, y: 52000 },
+    250: { m: 4000, y: 40000 },
+    500: { m: 6000, y: 60000 },
   },
 } as const;
 const TIERS = [100, 250, 500] as const;
