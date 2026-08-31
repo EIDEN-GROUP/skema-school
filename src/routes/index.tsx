@@ -169,27 +169,26 @@ const tarifs = [
   },
 ] as const;
 
-/**
- * Prix HT en MAD, par formule → effectif → { m: mensuel, y: annuel }.
- * Base 100 élèves = le tarif de départ. Palier suivant = ×2 (jusqu'à 250,
- * soit 2,5× l'effectif), puis ×3 (jusqu'à 500, soit 5× l'effectif) : une
- * remise de volume est déjà intégrée. Pro = toujours 2× Essentiel.
- * Annuel = 10 mois payés (2 mois offerts).
- */
-const PRICE = {
-  essentiel: {
-    100: { m: 1000, y: 10000 },
-    250: { m: 2000, y: 20000 },
-    500: { m: 3000, y: 30000 },
-  },
-  pro: {
-    100: { m: 2000, y: 20000 },
-    250: { m: 4000, y: 40000 },
-    500: { m: 6000, y: 60000 },
-  },
-} as const;
-const TIERS = [100, 250, 500] as const;
+const TIERS = [100, 250, 300] as const;
 type Tier = (typeof TIERS)[number];
+const MONTHS_OFF = 4; // annuel = 8 mois payés au lieu de 12
+
+/**
+ * Prix HT en MAD, calculé plutôt que fixé à la main :
+ *   mensuel Essentiel = 1000 (base 100 élèves) + 5 MAD par élève au-delà de 100
+ *   mensuel Pro       = 2 × Essentiel
+ *   annuel            = 8 × le mensuel (4 mois offerts)
+ * Résultat arrondi à la centaine.
+ */
+const priceFor = (plan: "essentiel" | "pro", students: Tier) => {
+  const base = 1000 + 5 * (students - 100);
+  const m = Math.round((plan === "pro" ? base * 2 : base) / 100) * 100;
+  return { m, y: m * 8 };
+};
+const PRICE = {
+  essentiel: Object.fromEntries(TIERS.map((n) => [n, priceFor("essentiel", n)])) as Record<Tier, { m: number; y: number }>,
+  pro: Object.fromEntries(TIERS.map((n) => [n, priceFor("pro", n)])) as Record<Tier, { m: number; y: number }>,
+};
 
 /** SKEMA logo — the official uncropped brand lockup. */
 function Logo({ className = "h-12" }: { className?: string }) {
@@ -408,7 +407,7 @@ function PricingSection() {
               className={`flex items-center gap-2 ${seg} ${yearly ? segOn : segOff}`}
             >
               Annuel
-              <span className="rounded-full bg-turquoise/20 px-1.5 py-0.5 text-[10px] font-bold text-turquoise">−2 MOIS</span>
+              <span className="rounded-full bg-turquoise/20 px-1.5 py-0.5 text-[10px] font-bold text-turquoise">−{MONTHS_OFF} MOIS</span>
             </button>
           </div>
         </div>
@@ -455,9 +454,9 @@ function PricingSection() {
                 </p>
                 <p className="mt-1 text-xs text-nuit/50">
                   {custom
-                    ? `Au-delà de 500 élèves ou plusieurs sites`
+                    ? `Au-delà de ${TIERS[TIERS.length - 1]} élèves ou plusieurs sites`
                     : yearly
-                      ? `soit ${fmt(cell!.y / 10)} MAD/mois, 2 mois offerts`
+                      ? `${fmt(cell!.m * 12 - cell!.y)} MAD d'économie sur l'année`
                       : `jusqu'à ${tier} élèves, sans engagement`}
                 </p>
                 <ul className="mt-6 space-y-2.5 border-t border-nuit/10 pt-5">
