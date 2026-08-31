@@ -88,9 +88,9 @@ const SETTINGS_TABS = [
     id: "etablissement",
     label: "Établissement",
     icon: Package,
-    hint: "Coordonnées de l'école et documents officiels.",
+    hint: "Les coordonnées de l'école.",
   },
-  { id: "recu", label: "Reçu", icon: FileText, hint: "Le modèle de reçu envoyé aux familles." },
+  { id: "recu", label: "Reçu", icon: FileText, hint: "Le modèle de reçu envoyé aux familles et les documents officiels." },
 ] as const;
 
 function SettingsPage() {
@@ -146,13 +146,13 @@ function SettingsPage() {
           </>
         )}
         {tab === "paiements" && <PaymentDueSection />}
-        {tab === "etablissement" && (
+        {tab === "etablissement" && <SchoolInfoSection />}
+        {tab === "recu" && (
           <>
-            <SchoolInfoSection />
+            <PdfTemplateEditorSection />
             <DocumentsSection />
           </>
         )}
-        {tab === "recu" && <PdfTemplateEditorSection />}
       </div>
     </div>
   );
