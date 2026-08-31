@@ -121,15 +121,13 @@ const etapes = [
 
 const tarifs = [
   {
+    id: "essentiel",
     nom: "Essentiel",
-    prix: "1 000",
-    prixAnnuel: "8 000",
-    prixAnnuelParMois: "800",
     tag: "",
     img: stickerEssentiel,
     tape: "tape-turquoise",
     tilt: "-rotate-1",
-    desc: "Jusqu'à ~500 élèves actifs. Un seul administrateur.",
+    desc: "Un administrateur, l'essentiel du pilotage.",
     points: [
       "Fichier familles & élèves",
       "Planning & rendez-vous",
@@ -138,15 +136,13 @@ const tarifs = [
     ],
   },
   {
+    id: "pro",
     nom: "Pro",
-    prix: "2 000",
-    prixAnnuel: "16 000",
-    prixAnnuelParMois: "1 600",
     tag: "Le plus populaire",
     img: stickerPro,
     tape: "tape-violet",
     tilt: "rotate-0",
-    desc: "Établissements actifs : équipe multi-rôles et pilotage renforcé.",
+    desc: "Équipe multi-rôles, relances et pilotage renforcé.",
     points: [
       "Tout Essentiel",
       "Paiements & relances automatiques",
@@ -157,10 +153,8 @@ const tarifs = [
     ],
   },
   {
+    id: "reseau",
     nom: "Réseau",
-    prix: "sur mesure",
-    prixAnnuel: "",
-    prixAnnuelParMois: "",
     tag: "",
     img: stickerReseau,
     tape: "tape-corail",
@@ -173,7 +167,23 @@ const tarifs = [
       "Accompagnement au déploiement",
     ],
   },
-];
+] as const;
+
+/** Prix HT en MAD, par formule → effectif → { m: mensuel, y: annuel }. */
+const PRICE = {
+  essentiel: {
+    100: { m: 1000, y: 10000 },
+    250: { m: 1800, y: 18000 },
+    500: { m: 2600, y: 26000 },
+  },
+  pro: {
+    100: { m: 2000, y: 20000 },
+    250: { m: 3600, y: 36000 },
+    500: { m: 5200, y: 52000 },
+  },
+} as const;
+const TIERS = [100, 250, 500] as const;
+type Tier = (typeof TIERS)[number];
 
 /** SKEMA logo — the official uncropped brand lockup. */
 function Logo({ className = "h-12" }: { className?: string }) {
@@ -357,39 +367,63 @@ function Testimonials() {
 
 function PricingSection() {
   const [yearly, setYearly] = useState(false);
+  const [tier, setTier] = useState<Tier>(100);
+  const fmt = (n: number) => n.toLocaleString("fr-FR");
+
+  const seg =
+    "rounded-full px-3.5 py-1.5 transition-colors sm:px-4";
+  const segOn = "bg-white text-nuit shadow-sm";
+  const segOff = "text-nuit/50 hover:text-nuit";
 
   return (
     <section id="tarifs" className="relative mx-auto max-w-7xl px-6 py-20">
       <Sticker name="backpack" tilt={-8} className="pointer-events-none absolute -left-2 top-4 hidden w-16 opacity-60 lg:block" />
-      <div className="mb-10 max-w-xl">
+      <div className="mb-8 max-w-xl">
         <Kicker tone="text-turquoise">un tarif clair, pas de surprise</Kicker>
         <h2 className="mt-3 text-4xl font-bold tracking-tight text-nuit">
           Un prix par établissement, selon l&apos;effectif.
         </h2>
+        <p className="mt-3 text-nuit/60">
+          Un forfait unique, tout compris. Choisissez votre effectif et la périodicité.
+        </p>
       </div>
 
-      {/* Bascule Mensuel / Annuel */}
-      <div className="mb-12 inline-flex items-center gap-1 rounded-full bg-nuit/5 p-1 text-sm font-semibold">
-        <button
-          type="button"
-          onClick={() => setYearly(false)}
-          className={`rounded-full px-4 py-1.5 transition-colors ${!yearly ? "bg-white text-nuit shadow-sm" : "text-nuit/50 hover:text-nuit"}`}
-        >
-          Mensuel
-        </button>
-        <button
-          type="button"
-          onClick={() => setYearly(true)}
-          className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition-colors ${yearly ? "bg-white text-nuit shadow-sm" : "text-nuit/50 hover:text-nuit"}`}
-        >
-          Annuel
-          <span className="rounded-full bg-turquoise/20 px-1.5 py-0.5 text-[10px] font-bold text-turquoise">−2 MOIS</span>
-        </button>
+      {/* Filtres : périodicité + effectif */}
+      <div className="mb-12 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:gap-8">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-nuit/40">Périodicité</p>
+          <div className="inline-flex items-center gap-1 rounded-full bg-nuit/5 p-1 text-sm font-semibold">
+            <button type="button" onClick={() => setYearly(false)} className={`${seg} ${!yearly ? segOn : segOff}`}>
+              Mensuel
+            </button>
+            <button
+              type="button"
+              onClick={() => setYearly(true)}
+              className={`flex items-center gap-2 ${seg} ${yearly ? segOn : segOff}`}
+            >
+              Annuel
+              <span className="rounded-full bg-turquoise/20 px-1.5 py-0.5 text-[10px] font-bold text-turquoise">−2 MOIS</span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-nuit/40">Effectif de l&apos;établissement</p>
+          <div className="inline-flex items-center gap-1 rounded-full bg-nuit/5 p-1 text-sm font-semibold">
+            {TIERS.map((n) => (
+              <button key={n} type="button" onClick={() => setTier(n)} className={`${seg} ${tier === n ? segOn : segOff}`}>
+                Jusqu&apos;à {n}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
         {tarifs.map((t) => {
-          const custom = t.prix === "sur mesure";
+          const custom = t.id === "reseau";
+          const cell = custom ? null : PRICE[t.id as "essentiel" | "pro"][tier];
+          const amount = custom ? "sur mesure" : `${fmt(yearly ? cell!.y : cell!.m)} MAD`;
           return (
             <div key={t.nom} className="relative">
               <Note tapeTone={t.tape} variant="plain" className={`${t.tilt} h-full`}>
@@ -408,18 +442,18 @@ function PricingSection() {
                 <h3 className="text-xl font-bold text-nuit">{t.nom}</h3>
                 <p className="mt-1 text-sm text-nuit/60">{t.desc}</p>
                 <p className="mt-5 flex items-baseline gap-1.5">
-                  <span className="text-3xl font-bold tracking-tight text-nuit">
-                    {custom ? t.prix : `${yearly ? t.prixAnnuel : t.prix} MAD`}
-                  </span>
+                  <span className="text-3xl font-bold tracking-tight text-nuit">{amount}</span>
                   {!custom && (
                     <span className="text-sm font-semibold text-nuit/50">{yearly ? "/an HT" : "/mois HT"}</span>
                   )}
                 </p>
-                {!custom && (
-                  <p className="mt-1 text-xs text-nuit/50">
-                    {yearly ? `soit ${t.prixAnnuelParMois} MAD/mois, 2 mois offerts` : "sans engagement"}
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-nuit/50">
+                  {custom
+                    ? `Au-delà de 500 élèves ou plusieurs sites`
+                    : yearly
+                      ? `soit ${fmt(cell!.y / 10)} MAD/mois, 2 mois offerts`
+                      : `jusqu'à ${tier} élèves, sans engagement`}
+                </p>
                 <ul className="mt-6 space-y-2.5 border-t border-nuit/10 pt-5">
                   {t.points.map((p) => (
                     <li key={p} className="flex gap-2 text-[13.5px] leading-snug text-nuit/70">
