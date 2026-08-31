@@ -38,8 +38,8 @@ const C = {
   line: "#E4E7EC",
 } as const;
 
-const SITE = (process.env.PUBLIC_SITE_URL ?? "https://skema.ma").replace(/\/$/, "");
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? process.env.PUBLIC_ADMIN_EMAIL ?? "contact@skema.ma";
+const SITE = (process.env.PUBLIC_SITE_URL ?? "https://skema.eiden-group.com").replace(/\/$/, "");
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? process.env.PUBLIC_ADMIN_EMAIL ?? "contact@eiden-group.com";
 const WEBSITE = SITE.replace(/^https?:\/\//, "");
 const PHONE_MA_DISPLAY = process.env.PUBLIC_PHONE_DISPLAY ?? "07 77 77 74 28";
 const PHONE_MA_TEL = process.env.PUBLIC_PHONE_TEL ?? "+212777777428";
