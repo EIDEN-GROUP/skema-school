@@ -14,6 +14,8 @@ export type DemoRequest = {
   preferredDate: string;
   /** Optional free-text message */
   message?: string;
+  /** Formule + effectif + périodicité + prix choisis sur la page Tarifs */
+  plan?: string;
 };
 
 export type RenderedEmail = {
@@ -225,6 +227,7 @@ export function renderVisitorConfirmationEmail(data: DemoRequest): RenderedEmail
     { label: "Téléphone", value: data.phone, href: `tel:${data.phone.replace(/\s+/g, "")}` },
     { label: "Email", value: data.email, href: `mailto:${data.email}` },
   ];
+  if (data.plan?.trim()) rows.push({ label: "Formule souhaitée", value: data.plan.trim() });
   if (data.message?.trim()) rows.push({ label: "Message", value: data.message.trim() });
 
   const body = `
@@ -262,6 +265,7 @@ export function renderVisitorConfirmationEmail(data: DemoRequest): RenderedEmail
     `Créneau souhaité : ${dateLabel}`,
     `Téléphone : ${data.phone}`,
     `Email : ${data.email}`,
+    data.plan?.trim() ? `Formule souhaitée : ${data.plan.trim()}` : ``,
     data.message?.trim() ? `Message : ${data.message.trim()}` : ``,
     ``,
     `Une question ? Appelez le ${PHONE_MA_DISPLAY}.`,
@@ -420,6 +424,7 @@ export function renderAdminNotificationEmail(data: DemoRequest): RenderedEmail {
     { label: "Email", value: data.email, href: `mailto:${data.email}` },
     { label: "Reçu le", value: received },
   ];
+  if (data.plan?.trim()) rows.push({ label: "Formule souhaitée", value: data.plan.trim() });
   if (data.message?.trim()) rows.push({ label: "Message", value: data.message.trim() });
 
   const body = `
@@ -444,6 +449,7 @@ export function renderAdminNotificationEmail(data: DemoRequest): RenderedEmail {
     `Téléphone : ${data.phone}`,
     `Email : ${data.email}`,
     `Reçu le : ${received}`,
+    data.plan?.trim() ? `Formule souhaitée : ${data.plan.trim()}` : ``,
     data.message?.trim() ? `Message : ${data.message.trim()}` : ``,
   ]
     .filter(Boolean)

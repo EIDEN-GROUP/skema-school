@@ -26,6 +26,7 @@ function validate(input: unknown): DemoRequest {
   const phone = clean(data.phone);
   const preferredDate = clean(data.preferredDate);
   const message = clean(data.message);
+  const plan = clean(data.plan);
 
   if (!contactName) throw new Error("Votre nom complet est requis.");
   if (!center) throw new Error("Le nom de l'établissement est requis.");
@@ -44,6 +45,7 @@ function validate(input: unknown): DemoRequest {
     phone: (phone || "Non communiqué").slice(0, 40),
     preferredDate,
     message: composedMessage.slice(0, 2000),
+    plan: plan ? plan.slice(0, 200) : undefined,
   };
 }
 
@@ -65,12 +67,17 @@ export const submitDemoRequest = createServerFn({ method: "POST" })
 type Rendered = { subject: string; html: string; text: string };
 
 async function deliver(data: DemoRequest, visitor: Rendered, admin: Rendered): Promise<void> {
+  // `plan` has no dedicated column, so fold it into the stored message.
+  const storedMessage = [data.plan ? `Formule souhaitée : ${data.plan}` : null, data.message]
+    .filter(Boolean)
+    .join("\n\n");
+
   const { error: insertError } = await supabaseAdmin.from("demo_requests").insert({
     center: data.center,
     email: data.email,
     phone: data.phone,
     preferred_date: data.preferredDate,
-    message: data.message ?? null,
+    message: storedMessage || null,
   });
 
   if (insertError) {

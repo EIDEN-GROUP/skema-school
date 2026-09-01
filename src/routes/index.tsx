@@ -190,6 +190,20 @@ const PRICE = {
   pro: Object.fromEntries(TIERS.map((n) => [n, priceFor("pro", n)])) as Record<Tier, { m: number; y: number }>,
 };
 
+type PlanId = "essentiel" | "pro" | "reseau";
+type Selection = { plan: PlanId; tier: Tier; yearly: boolean };
+const PLAN_NAME: Record<PlanId, string> = { essentiel: "Essentiel", pro: "Pro", reseau: "Réseau" };
+
+/** Human-readable summary of a pricing choice, for the form + emails. */
+function describeSelection(s: Selection): { title: string; price: string; line: string } {
+  const nf = (n: number) => n.toLocaleString("fr-FR");
+  const title = `${PLAN_NAME[s.plan]} · jusqu'à ${s.tier} élèves`;
+  if (s.plan === "reseau") return { title, price: "sur mesure", line: `${title} · sur mesure` };
+  const cell = PRICE[s.plan][s.tier];
+  const price = s.yearly ? `${nf(cell.y)} MAD/an HT` : `${nf(cell.m)} MAD/mois HT`;
+  return { title, price, line: `${title} · ${s.yearly ? "annuel" : "mensuel"} · ${price}` };
+}
+
 /** SKEMA logo — the official uncropped brand lockup. */
 function Logo({ className = "h-12" }: { className?: string }) {
   return <img src="/skema-logo.png" alt="SKEMA, la solution tout-en-un pour votre établissement" className={`w-auto ${className}`} />;
@@ -236,13 +250,14 @@ const avis = [
   },
 ];
 
-function DemoForm() {
+function DemoForm({ selection, onClear }: { selection: Selection | null; onClear: () => void }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({ contactName: "", center: "", email: "", phone: "", preferredDate: "" });
   const [state, setState] = useState<"idle" | "sending" | "done">("idle");
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+  const picked = selection ? describeSelection(selection) : null;
 
   const field =
     "w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/35 focus:border-turquoise focus:bg-white/10 [color-scheme:dark]";
@@ -253,7 +268,7 @@ function DemoForm() {
     setError("");
     setState("sending");
     try {
-      const res = await submitDemoRequest({ data: form });
+      const res = await submitDemoRequest({ data: { ...form, plan: picked?.line ?? "" } });
       if (res.ok) setState("done");
       else {
         setError(res.error);
@@ -281,6 +296,20 @@ function DemoForm() {
 
   return (
     <form onSubmit={submit} className="mt-8 space-y-4">
+      {picked && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-turquoise/25 bg-turquoise/10 px-4 py-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-turquoise">Formule choisie</span>
+          <span className="text-sm font-bold text-white">{picked.title}</span>
+          <span className="text-sm font-semibold text-turquoise">{picked.price}</span>
+          <button
+            type="button"
+            onClick={onClear}
+            className="ml-auto text-xs font-semibold text-white/50 underline-offset-2 hover:text-white hover:underline"
+          >
+            retirer
+          </button>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={label} htmlFor="df-name">Nom complet</label>
@@ -370,10 +399,22 @@ function Testimonials() {
   );
 }
 
-function PricingSection() {
+function PricingSection({
+  selected,
+  onSelect,
+}: {
+  selected: Selection | null;
+  onSelect: (s: Selection) => void;
+}) {
   const [yearly, setYearly] = useState(false);
   const [tier, setTier] = useState<Tier>(100);
   const fmt = (n: number) => n.toLocaleString("fr-FR");
+
+  const choose = (plan: PlanId) => {
+    onSelect({ plan, tier, yearly });
+    if (typeof document !== "undefined")
+      document.getElementById("demo")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const seg =
     "rounded-full px-3.5 py-1.5 transition-colors sm:px-4";
@@ -429,14 +470,19 @@ function PricingSection() {
           const custom = t.id === "reseau";
           const cell = custom ? null : PRICE[t.id as "essentiel" | "pro"][tier];
           const amount = custom ? "sur mesure" : `${fmt(yearly ? cell!.y : cell!.m)} MAD`;
+          const isPicked = selected?.plan === t.id && selected.tier === tier && selected.yearly === yearly;
           return (
             <div key={t.nom} className="relative">
-              <Note tapeTone={t.tape} variant="plain" className={`${t.tilt} h-full`}>
-                {t.tag && (
+              <Note tapeTone={t.tape} variant="plain" className={`${t.tilt} h-full ${isPicked ? "ring-2 ring-turquoise ring-offset-2" : ""}`}>
+                {isPicked ? (
+                  <span className="absolute -top-3 left-6 rounded-full bg-turquoise px-3 py-1 text-[12px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(23,179,166,0.8)]">
+                    Sélectionnée
+                  </span>
+                ) : t.tag ? (
                   <span className="absolute -top-3 right-6 rounded-full bg-violet px-3 py-1 text-[12px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(108,77,246,0.8)]">
                     {t.tag}
                   </span>
-                )}
+                ) : null}
                 <img
                   src={t.img}
                   alt=""
@@ -467,14 +513,15 @@ function PricingSection() {
                     </li>
                   ))}
                 </ul>
-                <a
-                  href="#demo"
+                <button
+                  type="button"
+                  onClick={() => choose(t.id as PlanId)}
                   className={`mt-7 inline-flex w-full items-center justify-center rounded-[16px] px-5 py-3 text-sm font-bold transition-transform hover:-translate-y-0.5 ${
                     t.tag ? "bg-violet text-white" : "bg-nuit text-white"
                   }`}
                 >
-                  {custom ? "Parler à un expert" : "Choisir cette formule"}
-                </a>
+                  {custom ? "Parler à un expert" : isPicked ? "Formule choisie" : "Choisir cette formule"}
+                </button>
               </Note>
             </div>
           );
@@ -485,6 +532,7 @@ function PricingSection() {
 }
 
 function Landing() {
+  const [selection, setSelection] = useState<Selection | null>(null);
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background font-sans text-foreground">
       <div className="dots pointer-events-none fixed inset-0 -z-10" />
@@ -679,7 +727,7 @@ function Landing() {
 
       <Testimonials />
 
-      <PricingSection />
+      <PricingSection selected={selection} onSelect={setSelection} />
 
       {/* CTA — la conversion */}
       <section id="demo" className="mx-auto max-w-6xl px-6 pb-24 pt-4">
@@ -701,7 +749,7 @@ function Landing() {
                 pendant l'appel : vous repartez avec votre tableau de bord déjà rempli.
               </p>
 
-              <DemoForm />
+              <DemoForm selection={selection} onClear={() => setSelection(null)} />
 
               <ul className="mt-7 grid gap-x-6 gap-y-2 text-sm text-white/55 sm:grid-cols-2">
                 <li className="flex items-center gap-2"><span className="size-1.5 shrink-0 rounded-full bg-turquoise" /> Sans engagement</li>
