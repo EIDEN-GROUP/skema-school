@@ -15,6 +15,9 @@ import { BackToTop } from "@/components/back-to-top";
 import { PageTransition } from "@/components/page-transition";
 import { LandingI18nProvider } from "@/lib/landing-i18n";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { init, track, errorType } from "@/lib/analytics";
+import { ConsentBanner } from "@/components/consent-banner";
+import { AnalyticsPageTracker } from "@/components/analytics-page-tracker";
 
 function NotFoundComponent() {
   return (
@@ -43,8 +46,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    track("action_failed", {
+      action: "route_render",
+      module: "root_error_boundary",
+      error_type: errorType(error),
+    });
   }, [error]);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -87,14 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "SKEMA centralise élèves, notes, absences, emplois du temps et facturation de votre établissement privé.",
       },
-      { name: "author", content: "SKEMA" },
-      { property: "og:title", content: "SKEMA, la solution tout-en-un pour votre établissement" },
-      {
-        property: "og:description",
-        content: "Une plateforme unique et colorée pour piloter votre centre privé.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
     links: [
       { rel: "icon", type: "image/png", href: "/favicon.png" },
@@ -140,11 +140,17 @@ function RootComponent() {
     setHydrated(true);
   }, []);
 
+  // Initialize analytics asynchronously (client only). Never blocks rendering.
+  useEffect(() => {
+    void init();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <LandingI18nProvider>
           <div className="relative">
+            <AnalyticsPageTracker />
             <Outlet />
             {/* Client-only: the curtain animates on navigation, so it has nothing to render on the server. */}
             {hydrated ? <PageTransition /> : null}
@@ -152,6 +158,7 @@ function RootComponent() {
           {/* Floating FR/AR language toggle — hidden for now. */}
           {/* <LanguageToggleFloating /> */}
           <BackToTop />
+          <ConsentBanner />
         </LandingI18nProvider>
       </AuthProvider>
     </QueryClientProvider>

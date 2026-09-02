@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { buildMeta } from "@/lib/seo/metadata";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Building2 } from "lucide-react";
@@ -9,7 +10,14 @@ import { listDemoRequests } from "@/lib/server-superadmin";
 import { ghostPill, softCard } from "@/lib/dash-ui";
 
 export const Route = createFileRoute("/superadmin/demandes")({
-  head: () => ({ meta: [{ title: "Demandes démo   Superadmin" }] }),
+  head: () =>
+    buildMeta({
+      title: "Superadmin · Demandes démo",
+      description:
+        "Demandes de démonstration reçues sur la plateforme et création des centres correspondants.",
+      path: "/superadmin/demandes",
+      noindex: true,
+    }),
   component: SuperadminDemandes,
 });
 

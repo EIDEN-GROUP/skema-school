@@ -1,16 +1,29 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import { Sticker } from "@/components/skema/bits";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, CalendarDays, Pencil, Plus, Search, Trash2, Upload, Download, Loader2 } from "lucide-react";
-import { listEmployees, createEmployee, updateEmployee, deleteEmployee, importEmployeesCsv, type EmployeeInput } from "@/lib/server-employees";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertTriangle,
+  CalendarDays,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  Download,
+  Loader2,
+} from "lucide-react";
+import {
+  listEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+  importEmployeesCsv,
+  type EmployeeInput,
+} from "@/lib/server-employees";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,6 +35,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { interpolate, useDashboardI18n } from "@/lib/landing-i18n";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 import { usePagination, TablePagination } from "@/components/table-pagination";
 import {
   softCard,
@@ -36,7 +51,13 @@ import {
 } from "@/lib/dash-ui";
 
 export const Route = createFileRoute("/dashboard/affiches")({
-  head: () => ({ meta: [{ title: "Affiches   Équipe" }] }),
+  head: () =>
+    buildMeta({
+      title: "Équipe · SKEMA",
+      description: "Gestion de l'équipe et du personnel de l'école : postes, salaires et congés.",
+      path: "/dashboard/affiches",
+      noindex: true,
+    }),
   component: AffichesPage,
 });
 
@@ -103,7 +124,7 @@ const CONGE_TONE: Record<Exclude<CongeState, "aucun">, { label: string; chip: st
 
 /** Formate un salaire en MAD (séparateur d'espace fine, comme le reste du CRM). */
 function formatSalaire(v: number) {
-  return v.toLocaleString("fr-FR").replace(/ | /g, " ");
+  return v.toLocaleString("fr-FR").replace(/[\u202F\u00A0]/g, " ");
 }
 
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
@@ -122,12 +143,16 @@ function Badge({ children, variant }: { children: ReactNode; variant: "neutral" 
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide",
-        variant === "dark"
-          ? "bg-[#6C4DF6]/30 text-[#0E6B62]"
-          : "bg-muted text-foreground/70",
+        variant === "dark" ? "bg-[#6C4DF6]/30 text-[#0E6B62]" : "bg-muted text-foreground/70",
       )}
     >
-      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", variant === "dark" ? "bg-[#17B3A6]" : "bg-current")} aria-hidden />
+      <span
+        className={cn(
+          "h-1.5 w-1.5 shrink-0 rounded-full",
+          variant === "dark" ? "bg-[#17B3A6]" : "bg-current",
+        )}
+        aria-hidden
+      />
       {children}
     </span>
   );
@@ -219,7 +244,9 @@ function DetailEmployeDialog({
         </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-primary">
           <div className="shrink-0 border-b border-border px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{a.team}</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {a.team}
+            </p>
             <DialogTitle className="mt-2 text-left font-display text-xl font-semibold tracking-tight text-foreground">
               {a.detailModal.title}
             </DialogTitle>
@@ -327,7 +354,9 @@ function EditEmployeDialog({
         </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-primary">
           <div className="shrink-0 border-b border-border px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{a.editModal.eyebrow}</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {a.editModal.eyebrow}
+            </p>
             <DialogTitle className="mt-2 text-left font-display text-xl font-semibold tracking-tight text-foreground">
               {a.editModal.title}
             </DialogTitle>
@@ -361,7 +390,13 @@ function EditEmployeDialog({
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field id="ed-nom" label={f.fullName}>
-                <Input id="ed-nom" name="nomComplet" defaultValue={employe.nomComplet} required className={inputClass} />
+                <Input
+                  id="ed-nom"
+                  name="nomComplet"
+                  defaultValue={employe.nomComplet}
+                  required
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-statut" label={t.common.status}>
                 <Select value={statut} onValueChange={(v) => setStatut(v as StatutEmploye)}>
@@ -375,34 +410,83 @@ function EditEmployeDialog({
                 </Select>
               </Field>
               <Field id="ed-poste" label={t.common.position}>
-                <Input id="ed-poste" name="poste" defaultValue={employe.poste} className={inputClass} />
+                <Input
+                  id="ed-poste"
+                  name="poste"
+                  defaultValue={employe.poste}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-dept" label={t.common.department}>
-                <Input id="ed-dept" name="departement" defaultValue={employe.departement} className={inputClass} />
+                <Input
+                  id="ed-dept"
+                  name="departement"
+                  defaultValue={employe.departement}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-email" label={f.workEmail}>
-                <Input id="ed-email" name="email" type="email" defaultValue={employe.email} className={inputClass} />
+                <Input
+                  id="ed-email"
+                  name="email"
+                  type="email"
+                  defaultValue={employe.email}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-email-perso" label={f.personalEmail}>
-                <Input id="ed-email-perso" name="emailPerso" type="email" defaultValue={employe.emailPerso} className={inputClass} />
+                <Input
+                  id="ed-email-perso"
+                  name="emailPerso"
+                  type="email"
+                  defaultValue={employe.emailPerso}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-tel" label={f.phone1}>
-                <Input id="ed-tel" name="tel" type="tel" defaultValue={employe.tel} className={inputClass} />
+                <Input
+                  id="ed-tel"
+                  name="tel"
+                  type="tel"
+                  defaultValue={employe.tel}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-tel2" label={f.phone2}>
-                <Input id="ed-tel2" name="tel2" type="tel" defaultValue={employe.tel2} className={inputClass} />
+                <Input
+                  id="ed-tel2"
+                  name="tel2"
+                  type="tel"
+                  defaultValue={employe.tel2}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-naissance" label={f.birthDate}>
-                <Input id="ed-naissance" name="dateNaissance" defaultValue={employe.dateNaissance} className={inputClass} />
+                <Input
+                  id="ed-naissance"
+                  name="dateNaissance"
+                  defaultValue={employe.dateNaissance}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-embauche" label={f.hireDate}>
-                <Input id="ed-embauche" name="dateEmbauche" defaultValue={employe.dateEmbauche} className={inputClass} />
+                <Input
+                  id="ed-embauche"
+                  name="dateEmbauche"
+                  defaultValue={employe.dateEmbauche}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-cin" label={f.cinPassport}>
                 <Input id="ed-cin" name="cin" defaultValue={employe.cin} className={inputClass} />
               </Field>
               <Field id="ed-contrat" label={f.contractType}>
-                <Input id="ed-contrat" name="contrat" defaultValue={employe.contrat} className={inputClass} />
+                <Input
+                  id="ed-contrat"
+                  name="contrat"
+                  defaultValue={employe.contrat}
+                  className={inputClass}
+                />
               </Field>
               <Field id="ed-salaire" label={`Salaire mensuel brut (${t.common.mad})`}>
                 <Input
@@ -437,7 +521,12 @@ function EditEmployeDialog({
                 <Label htmlFor="ed-adresse" className={labelClass}>
                   {t.common.address}
                 </Label>
-                <Input id="ed-adresse" name="adresse" defaultValue={employe.adresse} className={inputClass} />
+                <Input
+                  id="ed-adresse"
+                  name="adresse"
+                  defaultValue={employe.adresse}
+                  className={inputClass}
+                />
               </div>
             </div>
             <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-5">
@@ -478,10 +567,14 @@ function AddEmployeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogSurface, "max-w-[560px]")}>
-        <DialogDescription className="sr-only">Ajouter un nouvel employé à l'équipe</DialogDescription>
+        <DialogDescription className="sr-only">
+          Ajouter un nouvel employé à l'équipe
+        </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-primary">
           <div className="shrink-0 border-b border-border px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Équipe</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Équipe
+            </p>
             <DialogTitle className="mt-2 text-left font-display text-xl font-semibold tracking-tight text-foreground">
               Ajouter un employé
             </DialogTitle>
@@ -530,10 +623,20 @@ function AddEmployeDialog({
                 </Select>
               </Field>
               <Field id="ae-poste" label={t.common.position}>
-                <Input id="ae-poste" name="poste" className={inputClass} placeholder="Ex. Professeur des écoles" />
+                <Input
+                  id="ae-poste"
+                  name="poste"
+                  className={inputClass}
+                  placeholder="Ex. Professeur des écoles"
+                />
               </Field>
               <Field id="ae-dept" label={t.common.department}>
-                <Input id="ae-dept" name="departement" className={inputClass} placeholder="Ex. Pédagogie" />
+                <Input
+                  id="ae-dept"
+                  name="departement"
+                  className={inputClass}
+                  placeholder="Ex. Pédagogie"
+                />
               </Field>
               <Field id="ae-email" label={f.workEmail}>
                 <Input id="ae-email" name="email" type="email" className={inputClass} />
@@ -545,7 +648,12 @@ function AddEmployeDialog({
                 <Input id="ae-cin" name="cin" className={inputClass} />
               </Field>
               <Field id="ae-embauche" label={f.hireDate}>
-                <Input id="ae-embauche" name="dateEmbauche" className={inputClass} placeholder="JJ/MM/AAAA" />
+                <Input
+                  id="ae-embauche"
+                  name="dateEmbauche"
+                  className={inputClass}
+                  placeholder="JJ/MM/AAAA"
+                />
               </Field>
               <Field id="ae-contrat" label={f.contractType}>
                 <Input id="ae-contrat" name="contrat" defaultValue="CDI" className={inputClass} />
@@ -604,7 +712,9 @@ function CongeDialog({
         <div className="border-t-4 border-t-[#FFB347]">
           <div className="flex items-start justify-between gap-3 border-b border-border px-6 pb-4 pt-6 pr-14">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Congés</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Congés
+              </p>
               <DialogTitle className="mt-2 text-left font-display text-xl font-semibold tracking-tight text-foreground">
                 {employe.nomComplet}
               </DialogTitle>
@@ -626,11 +736,15 @@ function CongeDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-muted/60 px-4 py-3">
                 <p className={labelClass}>Date de début</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{formatDateFr(employe.congeDebut)}</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {formatDateFr(employe.congeDebut)}
+                </p>
               </div>
               <div className="rounded-2xl bg-muted/60 px-4 py-3">
                 <p className={labelClass}>Date de fin</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{formatDateFr(employe.congeFin)}</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {formatDateFr(employe.congeFin)}
+                </p>
               </div>
             </div>
             <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
@@ -672,10 +786,14 @@ function DeleteEmployeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogSurface, "max-w-[440px]")}>
-        <DialogDescription className="sr-only">Confirmer la suppression de {employe.nomComplet}</DialogDescription>
+        <DialogDescription className="sr-only">
+          Confirmer la suppression de {employe.nomComplet}
+        </DialogDescription>
         <div className="border-t-4 border-t-[#FF666B]">
           <div className="border-b border-border px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Équipe</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Équipe
+            </p>
             <DialogTitle className="mt-2 text-left font-display text-xl font-semibold tracking-tight text-foreground">
               Supprimer cet employé ?
             </DialogTitle>
@@ -684,8 +802,8 @@ function DeleteEmployeDialog({
             <div className="flex items-start gap-3 rounded-2xl bg-[#FFE3E0]/50 px-4 py-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#D93A41]" />
               <p className="text-sm text-foreground">
-                <span className="font-semibold">{employe.nomComplet}</span>   {employe.poste} sera retiré de la liste du
-                personnel. Cette action est irréversible.
+                <span className="font-semibold">{employe.nomComplet}</span> {employe.poste} sera
+                retiré de la liste du personnel. Cette action est irréversible.
               </p>
             </div>
           </div>
@@ -716,6 +834,12 @@ function AffichesPage() {
   const { t } = useDashboardI18n();
   const a = t.affiches;
   const queryClient = useQueryClient();
+  const affichesViewedRef = useRef(false);
+  useEffect(() => {
+    if (affichesViewedRef.current) return;
+    affichesViewedRef.current = true;
+    track("settings_viewed", {});
+  }, []);
   const { data: employes = [], refetch: refetchEmployees } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
@@ -727,19 +851,28 @@ function AffichesPage() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...fields }: { id: string } & Partial<EmployeeInput>) =>
       updateEmployee({ data: { id, ...fields } }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employees"] }); toast.success("Employé mis à jour"); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Employé mis à jour");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const createMutation = useMutation({
     mutationFn: (input: EmployeeInput) => createEmployee({ data: input }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employees"] }); toast.success("Employé ajouté"); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Employé ajouté");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteEmployee({ data: id }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employees"] }); toast.success("Employé supprimé"); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Employé supprimé");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -747,13 +880,19 @@ function AffichesPage() {
     mutationFn: (input: { csvText: string }) => importEmployeesCsv({ data: input }),
     onSuccess: (r) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast.success(`${r.imported} employé(s) importé(s)${r.errors.length ? `, ${r.errors.length} erreur(s)` : ""}`);
+      toast.success(
+        `${r.imported} employé(s) importé(s)${r.errors.length ? `, ${r.errors.length} erreur(s)` : ""}`,
+      );
       if (r.errors.length) r.errors.forEach((e) => toast.error(e));
       setPreviewRows(null);
     },
     onError: (err) => {
       console.error("CSV import error:", err);
-      toast.error(err instanceof Error ? err.message : `Erreur import CSV${err ? ` : ${JSON.stringify(err)}` : ""}`);
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : `Erreur import CSV${err ? ` : ${JSON.stringify(err)}` : ""}`,
+      );
       setPreviewRows(null);
     },
   });
@@ -762,34 +901,62 @@ function AffichesPage() {
 
   function handleExportCsv() {
     const cols = [
-      "full_name", "position", "department", "email", "personal_email",
-      "phone", "phone2", "cin", "birth_date", "hire_date", "address",
-      "contract_type", "salary", "leave_start", "leave_end", "status",
+      "full_name",
+      "position",
+      "department",
+      "email",
+      "personal_email",
+      "phone",
+      "phone2",
+      "cin",
+      "birth_date",
+      "hire_date",
+      "address",
+      "contract_type",
+      "salary",
+      "leave_start",
+      "leave_end",
+      "status",
     ];
     const esc = (v: unknown) => {
       const s = String(v ?? "");
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const header = cols.join(",");
-    const body = employes.map((e) =>
-      cols.map((col) => {
-        const val = (e as Record<string, unknown>)[
-          col === "full_name" ? "nomComplet" :
-          col === "position" ? "poste" :
-          col === "department" ? "departement" :
-          col === "personal_email" ? "emailPerso" :
-          col === "phone" ? "tel" :
-          col === "phone2" ? "tel2" :
-          col === "birth_date" ? "dateNaissance" :
-          col === "hire_date" ? "dateEmbauche" :
-          col === "contract_type" ? "contrat" :
-          col === "leave_start" ? "congeDebut" :
-          col === "leave_end" ? "congeFin" :
-          col
-        ];
-        return esc(val);
-      }).join(",")
-    ).join("\n");
+    const body = employes
+      .map((e) =>
+        cols
+          .map((col) => {
+            const val = (e as Record<string, unknown>)[
+              col === "full_name"
+                ? "nomComplet"
+                : col === "position"
+                  ? "poste"
+                  : col === "department"
+                    ? "departement"
+                    : col === "personal_email"
+                      ? "emailPerso"
+                      : col === "phone"
+                        ? "tel"
+                        : col === "phone2"
+                          ? "tel2"
+                          : col === "birth_date"
+                            ? "dateNaissance"
+                            : col === "hire_date"
+                              ? "dateEmbauche"
+                              : col === "contract_type"
+                                ? "contrat"
+                                : col === "leave_start"
+                                  ? "congeDebut"
+                                  : col === "leave_end"
+                                    ? "congeFin"
+                                    : col
+            ];
+            return esc(val);
+          })
+          .join(","),
+      )
+      .join("\n");
     const csv = `${header}\n${body}`;
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -812,14 +979,19 @@ function AffichesPage() {
     if (lines.length < 2) return { headers: [], rows: [] };
     function splitLine(line: string): string[] {
       const res: string[] = [];
-      let cur = "", q = false;
+      let cur = "",
+        q = false;
       for (let i = 0; i < line.length; i++) {
         const c = line[i];
         if (c === '"') {
-          if (q && line[i + 1] === '"') { cur += '"'; i++; }
-          else q = !q;
-        } else if (c === "," && !q) { res.push(cur); cur = ""; }
-        else cur += c;
+          if (q && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else q = !q;
+        } else if (c === "," && !q) {
+          res.push(cur);
+          cur = "";
+        } else cur += c;
       }
       res.push(cur);
       return res;
@@ -829,7 +1001,9 @@ function AffichesPage() {
     for (let i = 1; i < lines.length; i++) {
       const vals = splitLine(lines[i]);
       const row: Record<string, string> = {};
-      headers.forEach((h, j) => { row[h] = (vals[j] ?? "").trim(); });
+      headers.forEach((h, j) => {
+        row[h] = (vals[j] ?? "").trim();
+      });
       rows.push(row);
     }
     return { headers, rows };
@@ -878,10 +1052,10 @@ function AffichesPage() {
   // 5 employés par page ; une nouvelle recherche renvoie en page 1.
   const pager = usePagination(filtered, search);
 
-  const selected = detailId ? employes.find((e) => e.id === detailId) ?? null : null;
-  const editing = editId ? employes.find((e) => e.id === editId) ?? null : null;
-  const deleting = deleteId ? employes.find((e) => e.id === deleteId) ?? null : null;
-  const conge = congeId ? employes.find((e) => e.id === congeId) ?? null : null;
+  const selected = detailId ? (employes.find((e) => e.id === detailId) ?? null) : null;
+  const editing = editId ? (employes.find((e) => e.id === editId) ?? null) : null;
+  const deleting = deleteId ? (employes.find((e) => e.id === deleteId) ?? null) : null;
+  const conge = congeId ? (employes.find((e) => e.id === congeId) ?? null) : null;
 
   const validateWarnings = useMemo(() => {
     if (!previewRows || !previewHeaders.length) return [];
@@ -889,7 +1063,7 @@ function AffichesPage() {
     const h = previewHeaders.map((x) => x.toLowerCase());
 
     const nameCol = previewHeaders.find((x) =>
-      ["full_name", "nom complet", "nom_complet", "nom"].includes(x.toLowerCase())
+      ["full_name", "nom complet", "nom_complet", "nom"].includes(x.toLowerCase()),
     );
     if (!nameCol) warnings.push("Colonne manquante : full_name / Nom complet");
 
@@ -901,7 +1075,8 @@ function AffichesPage() {
       { label: "salary / Salaire", keys: ["salary", "salaire"] },
     ];
     recommended.forEach((r) => {
-      if (!r.keys.some((k) => h.includes(k))) warnings.push(`Colonne conseillée manquante : ${r.label}`);
+      if (!r.keys.some((k) => h.includes(k)))
+        warnings.push(`Colonne conseillée manquante : ${r.label}`);
     });
 
     if (nameCol) {
@@ -913,7 +1088,11 @@ function AffichesPage() {
 
   return (
     <div className="space-y-8">
-      <DetailEmployeDialog employe={selected} open={Boolean(selected)} onOpenChange={(o) => !o && setDetailId(null)} />
+      <DetailEmployeDialog
+        employe={selected}
+        open={Boolean(selected)}
+        onOpenChange={(o) => !o && setDetailId(null)}
+      />
       <EditEmployeDialog
         employe={editing}
         open={Boolean(editing)}
@@ -935,13 +1114,28 @@ function AffichesPage() {
         employe={deleting}
         open={Boolean(deleting)}
         onOpenChange={(o) => !o && setDeleteId(null)}
-        onConfirm={() => { if (deleteId) { deleteMutation.mutate(deleteId); setDeleteId(null); } }}
+        onConfirm={() => {
+          if (deleteId) {
+            deleteMutation.mutate(deleteId);
+            setDeleteId(null);
+          }
+        }}
       />
-      <CongeDialog employe={conge} open={Boolean(conge)} onOpenChange={(o) => !o && setCongeId(null)} />
+      <CongeDialog
+        employe={conge}
+        open={Boolean(conge)}
+        onOpenChange={(o) => !o && setCongeId(null)}
+      />
 
       <header className="relative space-y-4">
-        <Sticker name="megaphone" tilt={-6} className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block" />
-        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">{a.eyebrow}</p>
+        <Sticker
+          name="megaphone"
+          tilt={-6}
+          className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block"
+        />
+        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+          {a.eyebrow}
+        </p>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-hand text-4xl md:text-[3rem] leading-tight tracking-tight text-foreground">
@@ -956,16 +1150,39 @@ function AffichesPage() {
               type="file"
               accept=".csv"
               className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportCsv(f); e.target.value = ""; }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImportCsv(f);
+                e.target.value = "";
+              }}
             />
-            <button type="button" onClick={handleExportCsv} className={cn(ghostPill, "gap-1.5")} title="Exporter en CSV">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className={cn(ghostPill, "gap-1.5")}
+              title="Exporter en CSV"
+            >
               <Download className="h-3.5 w-3.5" /> Exporter
             </button>
-            <button type="button" onClick={() => fileRef.current?.click()} disabled={importCsv.isPending} className={cn(ghostPill, "gap-1.5 disabled:opacity-50")} title="Importer un CSV">
-              {importCsv.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={importCsv.isPending}
+              className={cn(ghostPill, "gap-1.5 disabled:opacity-50")}
+              title="Importer un CSV"
+            >
+              {importCsv.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
               Importer
             </button>
-            <button type="button" onClick={() => setAddOpen(true)} className={cn(primaryPill, "w-full justify-center sm:w-auto sm:shrink-0")}>
+            <button
+              type="button"
+              onClick={() => setAddOpen(true)}
+              className={cn(primaryPill, "w-full justify-center sm:w-auto sm:shrink-0")}
+            >
               <Plus className="h-4 w-4" />
               Ajouter un employé
             </button>
@@ -995,7 +1212,9 @@ function AffichesPage() {
 
       <section className={cn(softCard, "overflow-hidden")}>
         <div className="border-b border-[#001B3D]/10 px-5 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{a.employeeList}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            {a.employeeList}
+          </p>
         </div>
         {/* Mobile : liste de cartes */}
         <ul className="divide-y divide-border sm:hidden">
@@ -1006,11 +1225,16 @@ function AffichesPage() {
               <li key={e.id} className="px-4 py-3.5">
                 <button
                   type="button"
-                  onClick={() => { setDetailId(e.id); setEditId(null); }}
+                  onClick={() => {
+                    setDetailId(e.id);
+                    setEditId(null);
+                  }}
                   className="block w-full text-left"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="min-w-0 truncate text-sm font-semibold text-foreground">{e.nomComplet}</p>
+                    <p className="min-w-0 truncate text-sm font-semibold text-foreground">
+                      {e.nomComplet}
+                    </p>
                     <Badge variant={e.statut === "actif" ? "dark" : "neutral"}>
                       {e.statut === "actif" ? t.status.actif : t.status.inactif}
                     </Badge>
@@ -1019,7 +1243,10 @@ function AffichesPage() {
                     {[e.poste, e.departement].filter(Boolean).join(" · ") || " "}
                   </p>
                   <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-                    {formatSalaire(e.salaire)} <span className="text-xs font-normal text-muted-foreground">{t.common.mad}</span>
+                    {formatSalaire(e.salaire)}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {t.common.mad}
+                    </span>
                   </p>
                 </button>
                 <div className="mt-2 flex items-center gap-1.5">
@@ -1040,7 +1267,10 @@ function AffichesPage() {
                   <div className="ml-auto flex gap-1">
                     <button
                       type="button"
-                      onClick={() => { setEditId(e.id); setDetailId(null); }}
+                      onClick={() => {
+                        setEditId(e.id);
+                        setDetailId(null);
+                      }}
                       className={iconButton}
                       aria-label={interpolate(a.editAria, { name: e.nomComplet })}
                     >
@@ -1049,7 +1279,10 @@ function AffichesPage() {
                     <button
                       type="button"
                       onClick={() => setDeleteId(e.id)}
-                      className={cn(iconButton, "hover:border-[#FF666B]/40 hover:bg-[#FFE3E0] hover:text-[#D93A41]")}
+                      className={cn(
+                        iconButton,
+                        "hover:border-[#FF666B]/40 hover:bg-[#FFE3E0] hover:text-[#D93A41]",
+                      )}
                       aria-label={`Supprimer ${e.nomComplet}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -1092,7 +1325,10 @@ function AffichesPage() {
                     <span className="mt-0.5 block text-xs text-muted-foreground">{e.tel}</span>
                   </td>
                   <td className="px-4 py-3 font-semibold tabular-nums text-foreground">
-                    {formatSalaire(e.salaire)} <span className="text-xs font-normal text-muted-foreground">{t.common.mad}</span>
+                    {formatSalaire(e.salaire)}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {t.common.mad}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -1168,7 +1404,9 @@ function AffichesPage() {
         <DialogContent className="max-w-[90vw] max-h-[85vh] flex flex-col">
           <DialogTitle className="text-lg font-semibold">Aperçu des données CSV</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            {previewRows ? `${previewRows.length} employé(s) détecté(s). Vérifiez les données avant de confirmer l'import.` : ""}
+            {previewRows
+              ? `${previewRows.length} employé(s) détecté(s). Vérifiez les données avant de confirmer l'import.`
+              : ""}
           </DialogDescription>
           {validateWarnings.length > 0 ? (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -1177,7 +1415,9 @@ function AffichesPage() {
                   <span className="shrink-0">⚠️</span> {w}
                 </p>
               ))}
-              <p className="mt-1 text-[10px] text-amber-600">L'import peut tout de même être tenté avec les données disponibles.</p>
+              <p className="mt-1 text-[10px] text-amber-600">
+                L'import peut tout de même être tenté avec les données disponibles.
+              </p>
             </div>
           ) : previewRows ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
@@ -1189,7 +1429,12 @@ function AffichesPage() {
               <thead>
                 <tr className="bg-muted/50">
                   {previewHeaders.map((h, i) => (
-                    <th key={i} className="whitespace-nowrap px-3 py-2 text-left font-semibold text-foreground">{h}</th>
+                    <th
+                      key={i}
+                      className="whitespace-nowrap px-3 py-2 text-left font-semibold text-foreground"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -1197,7 +1442,13 @@ function AffichesPage() {
                 {previewRows?.map((row, ri) => (
                   <tr key={ri} className="border-t border-border odd:bg-card">
                     {previewHeaders.map((h, ci) => (
-                      <td key={ci} className="max-w-[200px] truncate px-3 py-1.5 text-foreground" title={row[h]}>{row[h]}</td>
+                      <td
+                        key={ci}
+                        className="max-w-[200px] truncate px-3 py-1.5 text-foreground"
+                        title={row[h]}
+                      >
+                        {row[h]}
+                      </td>
                     ))}
                   </tr>
                 ))}
@@ -1218,7 +1469,9 @@ function AffichesPage() {
               disabled={importCsv.isPending}
               className="rounded-full bg-[#17B3A6] px-5 py-2 text-sm font-medium text-white hover:bg-[#0E9C90] disabled:opacity-60"
             >
-              {importCsv.isPending ? "Import en cours…" : `Importer ${previewRows?.length ?? 0} employé(s)`}
+              {importCsv.isPending
+                ? "Import en cours…"
+                : `Importer ${previewRows?.length ?? 0} employé(s)`}
             </button>
           </div>
         </DialogContent>

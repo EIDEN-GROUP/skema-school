@@ -1,17 +1,15 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { interpolate, useDashboardI18n } from "@/lib/landing-i18n";
 import { softCard, dashTooltip } from "@/lib/dash-ui";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 const CHART_VALUES = [4, 7, 6, 3, 9, 12, 11];
 
@@ -141,7 +139,9 @@ function buildFamillesPayees(): DemoFamily[] {
     parent: `Famille ${name}`,
     child: CHILD_NAMES[i % CHILD_NAMES.length],
     email: `famille.${slug(name)}@demo-crm.ma`,
-    phone: `06${String(21000000 + i * 91357).padStart(8, "0").slice(0, 8)}`,
+    phone: `06${String(21000000 + i * 91357)
+      .padStart(8, "0")
+      .slice(0, 8)}`,
     remarque: "Paiement à jour",
   }));
   return [...core, ...extra];
@@ -171,7 +171,9 @@ function buildFamillesImpayees(): DemoFamily[] {
     parent: `Famille ${name}`,
     child: CHILD_NAMES[(i + 3) % CHILD_NAMES.length],
     email: `impaye.${slug(name)}@demo-crm.ma`,
-    phone: `06${String(31000000 + i * 71717).padStart(8, "0").slice(0, 8)}`,
+    phone: `06${String(31000000 + i * 71717)
+      .padStart(8, "0")
+      .slice(0, 8)}`,
     remarque: IMPAYE_REMARQUES[i % IMPAYE_REMARQUES.length],
   }));
   return [...core, ...extra];
@@ -225,7 +227,9 @@ function ListeFamillesModal({
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((row) => {
-      const hay = [row.parent, row.child, row.email, row.phone, row.remarque].join(" ").toLowerCase();
+      const hay = [row.parent, row.child, row.email, row.phone, row.remarque]
+        .join(" ")
+        .toLowerCase();
       return hay.includes(q);
     });
   }, [rows, query]);
@@ -236,7 +240,9 @@ function ListeFamillesModal({
         <DialogDescription className="sr-only min-w-0">{r.modalSrDesc}</DialogDescription>
         <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col border-t-4 border-t-primary">
           <div className="border-b border-border px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {eyebrow}
+            </p>
             <DialogTitle className="mt-2 text-left font-display text-xl font-semibold tracking-tight text-foreground">
               {title}
             </DialogTitle>
@@ -244,8 +250,14 @@ function ListeFamillesModal({
               {query.trim() ? (
                 <>
                   {filtered.length === 1
-                    ? interpolate(r.resultsOnTotal, { filtered: filtered.length, total: rows.length })
-                    : interpolate(r.resultsOnTotalPlural, { filtered: filtered.length, total: rows.length })}
+                    ? interpolate(r.resultsOnTotal, {
+                        filtered: filtered.length,
+                        total: rows.length,
+                      })
+                    : interpolate(r.resultsOnTotalPlural, {
+                        filtered: filtered.length,
+                        total: rows.length,
+                      })}
                 </>
               ) : (
                 <>
@@ -300,9 +312,13 @@ function ListeFamillesModal({
                       <td className="px-4 py-3 text-foreground/90">{row.child}</td>
                       <td className="px-4 py-3 text-muted-foreground">
                         <span className="block">{row.email}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{row.phone}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {row.phone}
+                        </span>
                       </td>
-                      <td className="max-w-[11rem] px-4 py-3 text-xs leading-snug text-muted-foreground">{row.remarque}</td>
+                      <td className="max-w-[11rem] px-4 py-3 text-xs leading-snug text-muted-foreground">
+                        {row.remarque}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -318,6 +334,12 @@ function ListeFamillesModal({
 function RapportsPage() {
   const { t } = useDashboardI18n();
   const r = t.rapports;
+  const reportsViewedRef = useRef(false);
+  useEffect(() => {
+    if (reportsViewedRef.current) return;
+    reportsViewedRef.current = true;
+    track("reports_viewed", {});
+  }, []);
   const [modal, setModal] = useState<null | "paye" | "en_attente">(null);
 
   const chartData = useMemo(
@@ -343,7 +365,9 @@ function RapportsPage() {
       />
 
       <header className="space-y-4">
-        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">{r.eyebrow}</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+          {r.eyebrow}
+        </p>
         <div>
           <h1 className="font-display text-3xl md:text-[2.35rem] leading-tight tracking-tight text-foreground">
             <span className="font-semibold">{r.titleBold}</span>{" "}
@@ -354,40 +378,65 @@ function RapportsPage() {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <div
+        <div
           className={cn(
             cardClass,
             "border-t-primary sm:col-span-2 xl:col-span-1",
             "cursor-default hover:border-border hover:bg-card",
           )}
         >
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{r.summary}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            {r.summary}
+          </p>
           <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{r.paid}</p>
-              <p className="font-display text-2xl font-semibold tracking-tight text-foreground tabular-nums">{TOTAL_PAYE}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {r.paid}
+              </p>
+              <p className="font-display text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+                {TOTAL_PAYE}
+              </p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{r.unpaid}</p>
-              <p className="font-display text-2xl font-semibold tracking-tight text-foreground tabular-nums">{TOTAL_IMPAYE}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {r.unpaid}
+              </p>
+              <p className="font-display text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+                {TOTAL_IMPAYE}
+              </p>
             </div>
             <div className="min-w-[6rem] border-l border-border pl-6">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{r.totalFamilies}</p>
-              <p className="font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">{TOTAL_FAMILLES_RAPPORTS}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {r.totalFamilies}
+              </p>
+              <p className="font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+                {TOTAL_FAMILLES_RAPPORTS}
+              </p>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
             <p className="text-xs text-muted-foreground">{r.summaryNote}</p>
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#001B3D]/8 text-[#001B3D]" aria-hidden>
+            <span
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#001B3D]/8 text-[#001B3D]"
+              aria-hidden
+            >
               <Users className="h-5 w-5" />
             </span>
           </div>
         </div>
 
-        <button type="button" onClick={() => setModal("paye")} className={cn(cardClass, "border-t-chart-4")}>
-          <p className="pr-14 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{r.paidCard}</p>
+        <button
+          type="button"
+          onClick={() => setModal("paye")}
+          className={cn(cardClass, "border-t-chart-4")}
+        >
+          <p className="pr-14 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            {r.paidCard}
+          </p>
           <div className="mt-3 flex items-start justify-between gap-3">
-            <p className="font-display text-3xl font-semibold tracking-tight text-foreground">{TOTAL_PAYE}</p>
+            <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
+              {TOTAL_PAYE}
+            </p>
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#001B3D]/8 text-[#001B3D]">
               <CheckCircle2 className="h-5 w-5" aria-hidden />
             </span>
@@ -395,32 +444,52 @@ function RapportsPage() {
           <p className="mt-1 text-xs text-muted-foreground">{r.paidDesc}</p>
         </button>
 
-        <button type="button" onClick={() => setModal("en_attente")} className={cn(cardClass, "border-t-chart-3")}>
-          <p className="pr-14 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{r.unpaidCard}</p>
+        <button
+          type="button"
+          onClick={() => setModal("en_attente")}
+          className={cn(cardClass, "border-t-chart-3")}
+        >
+          <p className="pr-14 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            {r.unpaidCard}
+          </p>
           <div className="mt-3 flex items-start justify-between gap-3">
-            <p className="font-display text-3xl font-semibold tracking-tight text-foreground">{TOTAL_IMPAYE}</p>
+            <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
+              {TOTAL_IMPAYE}
+            </p>
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#FFF3E6] text-[#B5760E]">
               <XCircle className="h-5 w-5" aria-hidden />
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{r.unpaidDesc}</p>
         </button>
-
-        
       </div>
 
       <div className={cn(softCard, "p-6")}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.common.chart}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {t.common.chart}
+        </p>
         <h2 className="mt-1 font-display text-xl text-foreground">
-          {r.chartTitleBold} <span className="font-normal italic text-muted-foreground">{r.chartTitleItalic}</span>
+          {r.chartTitleBold}{" "}
+          <span className="font-normal italic text-muted-foreground">{r.chartTitleItalic}</span>
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">{r.chartSubtitle}</p>
         <div className="mt-4 h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(40,57,108,0.10)" vertical={false} />
-              <XAxis dataKey="m" stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+              <XAxis
+                dataKey="m"
+                stroke="var(--muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="var(--muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
               <Tooltip contentStyle={chartTooltip} cursor={{ fill: "rgba(181,225,139,0.18)" }} />
               <Bar dataKey="v" fill="#001B3D" radius={[8, 8, 0, 0]} maxBarSize={38} />
             </BarChart>
@@ -432,6 +501,12 @@ function RapportsPage() {
 }
 
 export const Route = createFileRoute("/dashboard/rapports")({
-  head: () => ({ meta: [{ title: "Rapports   CRM" }] }),
+  head: () =>
+    buildMeta({
+      title: "Rapports · SKEMA",
+      description: "Rapports et statistiques sur les familles, les paiements et la fréquentation.",
+      path: "/dashboard/rapports",
+      noindex: true,
+    }),
   component: RapportsPage,
 });

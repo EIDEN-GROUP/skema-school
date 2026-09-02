@@ -1,3 +1,4 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef, type ReactNode } from "react";
 import { Sticker } from "@/components/skema/bits";
@@ -26,17 +27,8 @@ import {
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,13 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip as RTooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { interpolate, useDashboardI18n } from "@/lib/landing-i18n";
 import {
@@ -72,19 +58,42 @@ import {
   renderPieLabel,
   eyebrowClass,
 } from "@/lib/dash-ui";
-import { listClients, createClient, updateClient, deleteClient, getClient, importClientsCsv, type ClientInput } from "@/lib/server-clients";
+import {
+  listClients,
+  createClient,
+  updateClient,
+  deleteClient,
+  getClient,
+  importClientsCsv,
+  type ClientInput,
+} from "@/lib/server-clients";
 import { getSettings, listLevels } from "@/lib/server-settings";
 import { StudentFields } from "@/components/student-fields";
 import { usePagination, TablePagination } from "@/components/table-pagination";
 
-import { AddClientDialog, emptyChild, emptyWizard, type WizardData, type ChildFormData } from "@/components/add-client-wizard";
+import {
+  AddClientDialog,
+  emptyChild,
+  emptyWizard,
+  type WizardData,
+  type ChildFormData,
+} from "@/components/add-client-wizard";
 import { createPayment, updatePaymentInvoice } from "@/lib/server-payments";
 import { generateReceiptPdf } from "@/lib/server-receipt";
 import { sendClientMessage, sendBroadcast, sendPaymentConfirmation } from "@/lib/server-whatsapp";
 import { toast } from "sonner";
+import { track, trackFirstOnce } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 export const Route = createFileRoute("/dashboard/familles")({
-  head: () => ({ meta: [{ title: "Parents   CRM" }] }),
+  head: () =>
+    buildMeta({
+      title: "Familles & Élèves · SKEMA",
+      description:
+        "Gestion des familles et élèves inscrits : scolarité, services et suivi des paiements.",
+      path: "/dashboard/familles",
+      noindex: true,
+    }),
   component: CrmParentsPage,
 });
 
@@ -113,7 +122,14 @@ type DbClient = {
   profession_father: string;
   profession_mother: string;
   address: string;
-  child_names: { name: string; dob: string; cycle: string; level: string; services: string[]; frais: string[] }[];
+  child_names: {
+    name: string;
+    dob: string;
+    cycle: string;
+    level: string;
+    services: string[];
+    frais: string[];
+  }[];
   dob: string;
   level: string;
   crm_stage: string;
@@ -198,7 +214,8 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 
 /** Puces des services souscrits. */
 function ServiceChips({ services }: { services: string[] }) {
-  if (services.length === 0) return <span className="text-xs text-muted-foreground">Aucun service</span>;
+  if (services.length === 0)
+    return <span className="text-xs text-muted-foreground">Aucun service</span>;
   return (
     <span className="flex flex-wrap justify-center gap-1">
       {services.map((s) => (
@@ -215,11 +232,12 @@ function ServiceChips({ services }: { services: string[] }) {
 
 /** Badge de remise fratrie (masqué quand la famille n'a pas de remise). */
 function RemiseBadge({ client }: { client: FlatClient }) {
-  if (!client.remise || client.remise <= 0) return <span className="text-xs text-muted-foreground"> </span>;
+  if (!client.remise || client.remise <= 0)
+    return <span className="text-xs text-muted-foreground"> </span>;
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-[#6C4DF6]/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#0E6B62]">
       <Percent className="h-3 w-3" />
-      {client.remise}%   {client.fratrie} enfants
+      {client.remise}% {client.fratrie} enfants
     </span>
   );
 }
@@ -287,14 +305,21 @@ function dash(v: string) {
   return v.trim() === "" ? " " : v;
 }
 
-type FlatClient = DbClient & { child_subtitle?: string; has_transport: boolean; has_cantine: boolean; has_garderie: boolean; has_activites: boolean };
+type FlatClient = DbClient & {
+  child_subtitle?: string;
+  has_transport: boolean;
+  has_cantine: boolean;
+  has_garderie: boolean;
+  has_activites: boolean;
+};
 
 function CrmParentsPage() {
   const { t } = useDashboardI18n();
   const queryClient = useQueryClient();
   const { data: rawClients = [] } = useQuery({ queryKey: ["clients"], queryFn: listClients });
   const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: getSettings });
-  const services: Array<{ name: string; price: number; enabled: boolean }> = settings?.services ?? [];
+  const services: Array<{ name: string; price: number; enabled: boolean }> =
+    settings?.services ?? [];
   const svcNames = services.filter((s) => s.enabled).map((s) => s.name);
 
   const [search, setSearch] = useState("");
@@ -315,9 +340,32 @@ function CrmParentsPage() {
 
   const updateWizard = (patch: Partial<WizardData>) => setWizard((prev) => ({ ...prev, ...patch }));
 
+  const familiesViewedRef = useRef(false);
+  useEffect(() => {
+    if (familiesViewedRef.current) return;
+    familiesViewedRef.current = true;
+    track("families_viewed", {});
+  }, []);
+
+  const searchSessionRef = useRef(false);
+  useEffect(() => {
+    const len = search.trim().length;
+    if (len < 2) {
+      searchSessionRef.current = false;
+      return;
+    }
+    if (searchSessionRef.current) return;
+    const id = window.setTimeout(() => {
+      searchSessionRef.current = true;
+      track("family_search_used", {});
+    }, 600);
+    return () => window.clearTimeout(id);
+  }, [search]);
+
   const removeClient = useMutation({
     mutationFn: (id: string) => deleteClient({ data: id }),
     onSuccess: () => {
+      track("family_deleted", { role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast.success("Fiche supprimée");
@@ -326,13 +374,15 @@ function CrmParentsPage() {
   });
 
   const clients: FlatClient[] = useMemo(() => {
-    return (rawClients as any[] ?? []).map((r: any) => ({
+    return ((rawClients as any[]) ?? []).map((r: any) => ({
       ...r,
       child_subtitle: r.child_age ? `Enfant de ${r.child_age} ans` : undefined,
       has_transport: (r.subscribed_services ?? []).includes("Transport scolaire"),
       has_cantine: (r.subscribed_services ?? []).includes("Cantine"),
       has_garderie: (r.subscribed_services ?? []).includes("Garderie"),
-      has_activites: (r.subscribed_services ?? []).some((s: string) => s.toLowerCase().includes("activit")),
+      has_activites: (r.subscribed_services ?? []).some((s: string) =>
+        s.toLowerCase().includes("activit"),
+      ),
     }));
   }, [rawClients]);
 
@@ -349,7 +399,8 @@ function CrmParentsPage() {
       if (serviceFilter === "activites" && !c.has_activites) return false;
       if (serviceFilter === "remise" && (c.remise ?? 0) <= 0) return false;
       if (!q) return true;
-      const blob = `${c.parent_name} ${c.child_name} ${c.email} ${c.email2} ${c.phone} ${c.level}`.toLowerCase();
+      const blob =
+        `${c.parent_name} ${c.child_name} ${c.email} ${c.email2} ${c.phone} ${c.level}`.toLowerCase();
       return blob.includes(q);
     });
   }, [clients, search, serviceFilter, svcNames]);
@@ -368,8 +419,16 @@ function CrmParentsPage() {
   const pager = usePagination(filtered, `${search}|${serviceFilter}|${niveauFilter}`);
 
   const LEVEL_COLORS = [
-    "#001B3D", "#6C4DF6", "#FF666B", "#FFCB7A", "#6C8FD6",
-    "#FFB399", "#A8E8DD", "#9B7FFF", "#FF666B", "#3FC4B8",
+    "#001B3D",
+    "#6C4DF6",
+    "#FF666B",
+    "#FFCB7A",
+    "#6C8FD6",
+    "#FFB399",
+    "#A8E8DD",
+    "#9B7FFF",
+    "#FF666B",
+    "#3FC4B8",
   ];
 
   const donut = useMemo(() => {
@@ -431,36 +490,60 @@ function CrmParentsPage() {
   const importCsv = useMutation({
     mutationFn: (input: { csvText: string }) => importClientsCsv({ data: input }),
     onSuccess: (r) => {
+      track("family_import_completed", { imported: r.imported, errors: r.errors.length });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
-      toast.success(`${r.imported} client(s) importé(s)${r.errors.length ? `, ${r.errors.length} erreur(s)` : ""}`);
+      toast.success(
+        `${r.imported} client(s) importé(s)${r.errors.length ? `, ${r.errors.length} erreur(s)` : ""}`,
+      );
       if (r.errors.length) r.errors.forEach((e) => toast.error(e));
       setPreviewRows(null);
     },
     onError: (err) => {
       console.error("CSV import error:", err);
-      toast.error(err instanceof Error ? err.message : `Erreur import CSV${err ? ` : ${JSON.stringify(err)}` : ""}`);
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : `Erreur import CSV${err ? ` : ${JSON.stringify(err)}` : ""}`,
+      );
       setPreviewRows(null);
     },
   });
 
   function handleExportCsv() {
     const cols = [
-      "parent_name", "child_name", "child_names", "email", "phone", "address",
-      "level", "monthly_fee", "remise", "payment_day", "fratrie",
-      "transport", "cantine", "garderie", "activites", "notes",
+      "parent_name",
+      "child_name",
+      "child_names",
+      "email",
+      "phone",
+      "address",
+      "level",
+      "monthly_fee",
+      "remise",
+      "payment_day",
+      "fratrie",
+      "transport",
+      "cantine",
+      "garderie",
+      "activites",
+      "notes",
     ];
     const header = cols.join(",");
-    const body = clients.map((c) => {
-      const childNames = JSON.stringify(c.child_names ?? []);
-      const esc = (v: unknown) => {
-        const s = String(v ?? "");
-        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      };
-      return cols.map((col) => {
-        if (col === "child_names") return esc(childNames);
-        return esc((c as Record<string, unknown>)[col]);
-      }).join(",");
-    }).join("\n");
+    const body = clients
+      .map((c) => {
+        const childNames = JSON.stringify(c.child_names ?? []);
+        const esc = (v: unknown) => {
+          const s = String(v ?? "");
+          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        return cols
+          .map((col) => {
+            if (col === "child_names") return esc(childNames);
+            return esc((c as Record<string, unknown>)[col]);
+          })
+          .join(",");
+      })
+      .join("\n");
     const csv = `${header}\n${body}`;
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -485,14 +568,19 @@ function CrmParentsPage() {
 
     function splitLine(line: string): string[] {
       const res: string[] = [];
-      let cur = "", q = false;
+      let cur = "",
+        q = false;
       for (let i = 0; i < line.length; i++) {
         const c = line[i];
         if (c === '"') {
-          if (q && line[i + 1] === '"') { cur += '"'; i++; }
-          else q = !q;
-        } else if (c === "," && !q) { res.push(cur); cur = ""; }
-        else cur += c;
+          if (q && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else q = !q;
+        } else if (c === "," && !q) {
+          res.push(cur);
+          cur = "";
+        } else cur += c;
       }
       res.push(cur);
       return res;
@@ -503,7 +591,9 @@ function CrmParentsPage() {
     for (let i = 1; i < lines.length; i++) {
       const vals = splitLine(lines[i]);
       const row: Record<string, string> = {};
-      headers.forEach((h, j) => { row[h] = (vals[j] ?? "").trim(); });
+      headers.forEach((h, j) => {
+        row[h] = (vals[j] ?? "").trim();
+      });
       rows.push(row);
     }
     return { headers, rows };
@@ -536,7 +626,7 @@ function CrmParentsPage() {
     const h = previewHeaders.map((x) => x.toLowerCase());
 
     const nameCol = previewHeaders.find((x) =>
-      ["parent_name", "parent", "nom parent", "nom_parent"].includes(x.toLowerCase())
+      ["parent_name", "parent", "nom parent", "nom_parent"].includes(x.toLowerCase()),
     );
     if (!nameCol) warnings.push("Colonne manquante : parent_name / Parent");
 
@@ -545,10 +635,14 @@ function CrmParentsPage() {
       { label: "email / Email", keys: ["email"] },
       { label: "phone / Téléphone", keys: ["phone", "telephone", "téléphone", "tel"] },
       { label: "level / Niveau", keys: ["level", "niveau"] },
-      { label: "monthly_fee / Frais mensuels", keys: ["monthly_fee", "frais mensuels", "frais_mensuels"] },
+      {
+        label: "monthly_fee / Frais mensuels",
+        keys: ["monthly_fee", "frais mensuels", "frais_mensuels"],
+      },
     ];
     recommended.forEach((r) => {
-      if (!r.keys.some((k) => h.includes(k))) warnings.push(`Colonne conseillée manquante : ${r.label}`);
+      if (!r.keys.some((k) => h.includes(k)))
+        warnings.push(`Colonne conseillée manquante : ${r.label}`);
     });
 
     if (nameCol) {
@@ -561,15 +655,23 @@ function CrmParentsPage() {
   return (
     <div className="space-y-6">
       <header className="relative flex flex-wrap items-end justify-between gap-4">
-        <Sticker name="graduationCap" tilt={-6} className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block" />
+        <Sticker
+          name="graduationCap"
+          tilt={-6}
+          className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block"
+        />
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{t.familles.eyebrow}</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {t.familles.eyebrow}
+          </p>
           <h1 className="font-hand mt-1 text-4xl tracking-tight text-foreground md:text-5xl">
             {t.familles.titleBold}{" "}
-            {t.familles.titleItalic ? <span className="italic text-muted-foreground">{t.familles.titleItalic}</span> : null}
+            {t.familles.titleItalic ? (
+              <span className="italic text-muted-foreground">{t.familles.titleItalic}</span>
+            ) : null}
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Fiches élèves complètes   scolarité, contacts, santé et suivi des paiements mensuels.
+            Fiches élèves complètes scolarité, contacts, santé et suivi des paiements mensuels.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -578,13 +680,32 @@ function CrmParentsPage() {
             type="file"
             accept=".csv"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportCsv(f); e.target.value = ""; }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleImportCsv(f);
+              e.target.value = "";
+            }}
           />
-          <button type="button" onClick={handleExportCsv} className={cn(ghostPill, "gap-1.5")} title="Exporter en CSV">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className={cn(ghostPill, "gap-1.5")}
+            title="Exporter en CSV"
+          >
             <Download className="h-3.5 w-3.5" /> CSV
           </button>
-          <button type="button" onClick={() => fileRef.current?.click()} disabled={importCsv.isPending} className={cn(ghostPill, "gap-1.5 disabled:opacity-50")} title="Importer un CSV">
-            {importCsv.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={importCsv.isPending}
+            className={cn(ghostPill, "gap-1.5 disabled:opacity-50")}
+            title="Importer un CSV"
+          >
+            {importCsv.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
+            )}
             CSV
           </button>
           <button type="button" onClick={() => setAddOpen(true)} className={primaryPill}>
@@ -597,7 +718,9 @@ function CrmParentsPage() {
       {/* Filtres (barre pleine largeur) puis les deux camemberts en dessous */}
       <div className="space-y-4">
         <section className={cn(softCard, "p-5")}>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Filtres</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Filtres
+          </p>
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end">
             <div className="relative lg:flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
@@ -612,22 +735,42 @@ function CrmParentsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:flex lg:gap-3">
               <div className="lg:w-48">
                 <Label className={labelClass}>Niveau</Label>
-                <Select value={niveauFilter} onValueChange={setNiveauFilter}>
-                  <SelectTrigger className={cn(selectTriggerClass, "mt-1.5")} aria-label="Filtrer par niveau">
+                <Select
+                  value={niveauFilter}
+                  onValueChange={(v) => {
+                    setNiveauFilter(v);
+                    track("family_filter_used", { filter_type: "niveau" });
+                  }}
+                >
+                  <SelectTrigger
+                    className={cn(selectTriggerClass, "mt-1.5")}
+                    aria-label="Filtrer par niveau"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className={softSelectContent}>
                     <SelectItem value="tous">Tous les niveaux</SelectItem>
                     {niveaux.map((n) => (
-                      <SelectItem key={n} value={n}>{n}</SelectItem>
+                      <SelectItem key={n} value={n}>
+                        {n}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="lg:w-48">
                 <Label className={labelClass}>Service souscrit</Label>
-                <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                  <SelectTrigger className={cn(selectTriggerClass, "mt-1.5")} aria-label="Filtrer par service">
+                <Select
+                  value={serviceFilter}
+                  onValueChange={(v) => {
+                    setServiceFilter(v);
+                    track("family_filter_used", { filter_type: "service" });
+                  }}
+                >
+                  <SelectTrigger
+                    className={cn(selectTriggerClass, "mt-1.5")}
+                    aria-label="Filtrer par service"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className={softSelectContent}>
@@ -650,120 +793,149 @@ function CrmParentsPage() {
         </section>
 
         <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-        {/* Graphique circulaire   revenu total par service (prix × nb de familles) */}
-        <section className={cn(softCard, "flex flex-col p-5")}>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Revenu par service</p>
-          {serviceTotal > 0 ? (
-            <>
-              <div className="mx-auto mt-2 h-48 w-full max-w-[15rem]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={serviceDonut}
-                      dataKey="value"
-                      nameKey="name"
-                      outerRadius="95%"
-                      stroke="none"
-                      labelLine={false}
-                      label={renderTotalLabel}
-                    >
-                      {serviceDonut.map((d) => (
-                        <Cell key={d.name} fill={d.color} />
-                      ))}
-                    </Pie>
-                    <RTooltip
-                      contentStyle={dashTooltip}
-                      formatter={(value: number, name: string) => [`${value.toLocaleString("fr-FR")} MAD`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="mt-3 space-y-1.5">
-                {serviceDonut.map((d) => (
-                  <li key={d.name} className="flex items-center justify-between gap-2 rounded-full bg-muted/60 px-3 py-1.5 text-xs">
-                    <span className="flex items-center gap-2 font-medium text-foreground">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                      {d.name}
-                    </span>
-                    <span className="font-semibold tabular-nums text-foreground">
-                      {d.value.toLocaleString("fr-FR")} MAD
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-              Aucune souscription à un service pour cette sélection.
+          {/* Graphique circulaire   revenu total par service (prix × nb de familles) */}
+          <section className={cn(softCard, "flex flex-col p-5")}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Revenu par service
             </p>
-          )}
-        </section>
-
-        {/* Graphique circulaire   répartition par niveau */}
-        <section className={cn(softCard, "flex flex-col p-5")}>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Répartition par niveau</p>
-          {donutTotal > 0 ? (
-            <>
-              <div className="mx-auto mt-2 h-48 w-full max-w-[15rem]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={donut}
-                      dataKey="value"
-                      nameKey="name"
-                      outerRadius="95%"
-                      stroke="none"
-                      labelLine={false}
-                      label={renderPieLabel}
+            {serviceTotal > 0 ? (
+              <>
+                <div className="mx-auto mt-2 h-48 w-full max-w-[15rem]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={serviceDonut}
+                        dataKey="value"
+                        nameKey="name"
+                        outerRadius="95%"
+                        stroke="none"
+                        labelLine={false}
+                        label={renderTotalLabel}
+                      >
+                        {serviceDonut.map((d) => (
+                          <Cell key={d.name} fill={d.color} />
+                        ))}
+                      </Pie>
+                      <RTooltip
+                        contentStyle={dashTooltip}
+                        formatter={(value: number, name: string) => [
+                          `${value.toLocaleString("fr-FR")} MAD`,
+                          name,
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {serviceDonut.map((d) => (
+                    <li
+                      key={d.name}
+                      className="flex items-center justify-between gap-2 rounded-full bg-muted/60 px-3 py-1.5 text-xs"
                     >
-                      {donut.map((d) => (
-                        <Cell key={d.name} fill={d.color} />
-                      ))}
-                    </Pie>
-                    <RTooltip
-                      contentStyle={dashTooltip}
-                      formatter={(value: number, name: string) => [`${value} élève${value > 1 ? "s" : ""}`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="mt-3 space-y-1.5">
-                {(nivExpanded ? donut : donut.slice(0, 6)).map((d) => {
-                  const share = Math.round((d.value / donutTotal) * 100);
-                  return (
-                    <li key={d.name} className="flex items-center justify-between gap-2 rounded-full bg-muted/60 px-3 py-1.5 text-xs">
                       <span className="flex items-center gap-2 font-medium text-foreground">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: d.color }}
+                        />
                         {d.name}
                       </span>
                       <span className="font-semibold tabular-nums text-foreground">
-                        {d.value} · {share}%
+                        {d.value.toLocaleString("fr-FR")} MAD
                       </span>
                     </li>
-                  );
-                })}
-              </ul>
-              {donut.length > 6 ? (
-                <button
-                  type="button"
-                  onClick={() => setNivExpanded((v) => !v)}
-                  aria-expanded={nivExpanded}
-                  className="mt-2 inline-flex items-center gap-1 self-start rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15"
-                >
-                  {nivExpanded ? "Afficher moins" : `Afficher les ${donut.length} niveaux`}
-                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", nivExpanded && "rotate-180")} />
-                </button>
-              ) : null}
-            </>
-          ) : null}
-        </section>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-8 text-center text-sm text-muted-foreground">
+                Aucune souscription à un service pour cette sélection.
+              </p>
+            )}
+          </section>
+
+          {/* Graphique circulaire   répartition par niveau */}
+          <section className={cn(softCard, "flex flex-col p-5")}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Répartition par niveau
+            </p>
+            {donutTotal > 0 ? (
+              <>
+                <div className="mx-auto mt-2 h-48 w-full max-w-[15rem]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donut}
+                        dataKey="value"
+                        nameKey="name"
+                        outerRadius="95%"
+                        stroke="none"
+                        labelLine={false}
+                        label={renderPieLabel}
+                      >
+                        {donut.map((d) => (
+                          <Cell key={d.name} fill={d.color} />
+                        ))}
+                      </Pie>
+                      <RTooltip
+                        contentStyle={dashTooltip}
+                        formatter={(value: number, name: string) => [
+                          `${value} élève${value > 1 ? "s" : ""}`,
+                          name,
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {(nivExpanded ? donut : donut.slice(0, 6)).map((d) => {
+                    const share = Math.round((d.value / donutTotal) * 100);
+                    return (
+                      <li
+                        key={d.name}
+                        className="flex items-center justify-between gap-2 rounded-full bg-muted/60 px-3 py-1.5 text-xs"
+                      >
+                        <span className="flex items-center gap-2 font-medium text-foreground">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: d.color }}
+                          />
+                          {d.name}
+                        </span>
+                        <span className="font-semibold tabular-nums text-foreground">
+                          {d.value} · {share}%
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {donut.length > 6 ? (
+                  <button
+                    type="button"
+                    onClick={() => setNivExpanded((v) => !v)}
+                    aria-expanded={nivExpanded}
+                    className="mt-2 inline-flex items-center gap-1 self-start rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15"
+                  >
+                    {nivExpanded ? "Afficher moins" : `Afficher les ${donut.length} niveaux`}
+                    <ChevronDown
+                      className={cn(
+                        "h-3.5 w-3.5 transition-transform",
+                        nivExpanded && "rotate-180",
+                      )}
+                    />
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+          </section>
         </div>
       </div>
 
       {/* Tableau   cliquer une ligne ouvre la fiche complète */}
       <section className={cn(softCard, "overflow-hidden")}>
         <div className="border-b border-[#001B3D]/10 px-5 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t.familles.clientList}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            {t.familles.clientList}
+          </p>
         </div>
         <div className="overflow-x-auto">
           {/* Grille verticale posée au niveau du tableau plutôt que cellule par
@@ -790,8 +962,12 @@ function CrmParentsPage() {
                 <th className="whitespace-nowrap px-4 py-3.5">{t.familles.table.contact}</th>
                 <th className="whitespace-nowrap px-4 py-3.5 text-center">Services</th>
                 <th className="whitespace-nowrap px-4 py-3.5 text-center">Remise fratrie</th>
-                <th className="whitespace-nowrap px-4 py-3.5 text-right">{t.familles.table.monthly}</th>
-                <th className="w-36 whitespace-nowrap px-4 py-3.5 text-center">{t.familles.table.actions}</th>
+                <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                  {t.familles.table.monthly}
+                </th>
+                <th className="w-36 whitespace-nowrap px-4 py-3.5 text-center">
+                  {t.familles.table.actions}
+                </th>
               </tr>
             </thead>
             {/* Une <tr> par élève : Élève / Niveau / Services se lisent ligne par ligne,
@@ -829,7 +1005,6 @@ function CrmParentsPage() {
                         className="border-l-[3px] px-4 py-3.5 align-middle font-medium text-foreground"
                         style={{ borderLeftColor: accent }}
                       >
-
                         <span className="block">{c.parent_name}</span>
                       </td>
                     ) : null}
@@ -847,13 +1022,17 @@ function CrmParentsPage() {
                     {i === 0 ? (
                       <td rowSpan={span} className="px-4 py-3.5 align-middle text-muted-foreground">
                         <span className="block">{dash(c.email)}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground/70">{dash(c.email2)}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground/70">
+                          {dash(c.email2)}
+                        </span>
                       </td>
                     ) : null}
                     {i === 0 ? (
                       <td rowSpan={span} className="px-4 py-3.5 align-middle text-muted-foreground">
                         <span className="block whitespace-nowrap">{c.phone}</span>
-                        <span className="mt-0.5 block whitespace-nowrap text-xs text-muted-foreground/70">{dash(c.phone2)}</span>
+                        <span className="mt-0.5 block whitespace-nowrap text-xs text-muted-foreground/70">
+                          {dash(c.phone2)}
+                        </span>
                       </td>
                     ) : null}
                     <td className="px-4 py-3.5 align-middle">
@@ -871,28 +1050,42 @@ function CrmParentsPage() {
                       </td>
                     ) : null}
                     {i === 0 ? (
-                      <td rowSpan={span} className="whitespace-nowrap px-4 py-3.5 text-right align-middle tabular-nums text-foreground/90">
+                      <td
+                        rowSpan={span}
+                        className="whitespace-nowrap px-4 py-3.5 text-right align-middle tabular-nums text-foreground/90"
+                      >
                         <span className="block font-semibold text-foreground">
-                          {(c.monthly_fee ?? 0)} {t.common.mad}
+                          {c.monthly_fee ?? 0} {t.common.mad}
                         </span>
                         {(c.remise ?? 0) > 0 ? (
                           <span className="mt-0.5 block text-xs text-muted-foreground/70">
-                            {Math.round((c.monthly_fee ?? 0) * (1 - (c.remise ?? 0) / 100))} {t.common.mad} après remise
+                            {Math.round((c.monthly_fee ?? 0) * (1 - (c.remise ?? 0) / 100))}{" "}
+                            {t.common.mad} après remise
                           </span>
                         ) : null}
                         {/* Reflète le paiement : recalc_client_debt met à jour debt/statut après chaque paiement.
                             Un client sans recalc a debt=0 mais n'est pas payé, d'où le test sur le statut. */}
                         {c.payment_status === "paye" ? (
-                          <span className="mt-1 block text-xs font-medium text-[#17B3A6]">Mois payé</span>
+                          <span className="mt-1 block text-xs font-medium text-[#17B3A6]">
+                            Mois payé
+                          </span>
                         ) : (
                           <span className="mt-1 block text-xs font-medium text-[#FF666B]">
-                            Reste : {(c.debt ?? 0) > 0 ? c.debt : Math.round((c.monthly_fee ?? 0) * (1 - (c.remise ?? 0) / 100))} {t.common.mad}
+                            Reste :{" "}
+                            {(c.debt ?? 0) > 0
+                              ? c.debt
+                              : Math.round((c.monthly_fee ?? 0) * (1 - (c.remise ?? 0) / 100))}{" "}
+                            {t.common.mad}
                           </span>
                         )}
                       </td>
                     ) : null}
                     {i === 0 ? (
-                      <td rowSpan={span} className="px-4 py-3.5 align-middle" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        rowSpan={span}
+                        className="px-4 py-3.5 align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
@@ -906,12 +1099,19 @@ function CrmParentsPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (confirm(`Supprimer définitivement la fiche de ${c.child_name} (${c.parent_name}) ?`)) {
+                              if (
+                                confirm(
+                                  `Supprimer définitivement la fiche de ${c.child_name} (${c.parent_name}) ?`,
+                                )
+                              ) {
                                 removeClient.mutate(c.id);
                               }
                             }}
                             disabled={removeClient.isPending}
-                            className={cn(iconButton, "text-[#FF666B] hover:bg-[#FF666B]/10 hover:text-[#FF666B] disabled:opacity-50")}
+                            className={cn(
+                              iconButton,
+                              "text-[#FF666B] hover:bg-[#FF666B]/10 hover:text-[#FF666B] disabled:opacity-50",
+                            )}
                             title="Supprimer"
                             aria-label={`Supprimer la fiche de ${c.child_name}`}
                           >
@@ -923,12 +1123,13 @@ function CrmParentsPage() {
                   </tr>
                 ));
               })}
-
-           </tbody>
+            </tbody>
           </table>
         </div>
         {filtered.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t.familles.noMatch}</p>
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+            {t.familles.noMatch}
+          </p>
         ) : null}
         <TablePagination
           page={pager.page}
@@ -989,7 +1190,9 @@ function CrmParentsPage() {
         <DialogContent className="max-w-[90vw] max-h-[85vh] flex flex-col">
           <DialogTitle className="text-lg font-semibold">Aperçu des données CSV</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            {previewRows ? `${previewRows.length} client(s) détecté(s). Vérifiez les données avant de confirmer l'import.` : ""}
+            {previewRows
+              ? `${previewRows.length} client(s) détecté(s). Vérifiez les données avant de confirmer l'import.`
+              : ""}
           </DialogDescription>
           {validateWarnings.length > 0 ? (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -998,7 +1201,9 @@ function CrmParentsPage() {
                   <span className="shrink-0">⚠️</span> {w}
                 </p>
               ))}
-              <p className="mt-1 text-[10px] text-amber-600">L'import peut tout de même être tenté avec les données disponibles.</p>
+              <p className="mt-1 text-[10px] text-amber-600">
+                L'import peut tout de même être tenté avec les données disponibles.
+              </p>
             </div>
           ) : previewRows ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
@@ -1010,7 +1215,12 @@ function CrmParentsPage() {
               <thead>
                 <tr className="bg-muted/50">
                   {previewHeaders.map((h, i) => (
-                    <th key={i} className="whitespace-nowrap px-3 py-2 text-left font-semibold text-foreground">{h}</th>
+                    <th
+                      key={i}
+                      className="whitespace-nowrap px-3 py-2 text-left font-semibold text-foreground"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -1018,7 +1228,13 @@ function CrmParentsPage() {
                 {previewRows?.map((row, ri) => (
                   <tr key={ri} className="border-t border-border odd:bg-card">
                     {previewHeaders.map((h, ci) => (
-                      <td key={ci} className="max-w-[200px] truncate px-3 py-1.5 text-foreground" title={row[h]}>{row[h]}</td>
+                      <td
+                        key={ci}
+                        className="max-w-[200px] truncate px-3 py-1.5 text-foreground"
+                        title={row[h]}
+                      >
+                        {row[h]}
+                      </td>
                     ))}
                   </tr>
                 ))}
@@ -1039,7 +1255,9 @@ function CrmParentsPage() {
               disabled={importCsv.isPending}
               className="rounded-full bg-[#17B3A6] px-5 py-2 text-sm font-medium text-white hover:bg-[#0E9C90] disabled:opacity-60"
             >
-              {importCsv.isPending ? "Import en cours…" : `Importer ${previewRows?.length ?? 0} client(s)`}
+              {importCsv.isPending
+                ? "Import en cours…"
+                : `Importer ${previewRows?.length ?? 0} client(s)`}
             </button>
           </div>
         </DialogContent>
@@ -1058,7 +1276,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SectionTitle({ icon: Icon, children }: { icon: typeof GraduationCap; children: ReactNode }) {
+function SectionTitle({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof GraduationCap;
+  children: ReactNode;
+}) {
   return (
     <p className="col-span-full mt-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
       <span className="grid h-6 w-6 place-items-center rounded-lg bg-[#001B3D]/8 text-[#001B3D]">
@@ -1084,19 +1308,25 @@ function DetailClientDialog({
 }) {
   const { t } = useDashboardI18n();
   const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: getSettings });
-  const services: Array<{ name: string; price: number; enabled: boolean }> = settings?.services ?? [];
+  const services: Array<{ name: string; price: number; enabled: boolean }> =
+    settings?.services ?? [];
   const subscribed = client.subscribed_services ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogSurface, "w-[min(100vw-1.5rem,680px)] max-w-[680px]")}>
-        <DialogDescription className="sr-only">Fiche complète de {client.child_name}</DialogDescription>
+        <DialogDescription className="sr-only">
+          Fiche complète de {client.child_name}
+        </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-[#6C4DF6]">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#001B3D]/10 px-6 pb-4 pt-6 pr-14">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Fiche élève</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Fiche élève
+              </p>
               <DialogTitle className="mt-1 text-left font-display text-xl font-semibold tracking-tight text-foreground">
-                {client.child_name} <span className="font-normal text-muted-foreground">· {client.parent_name}</span>
+                {client.child_name}{" "}
+                <span className="font-normal text-muted-foreground">· {client.parent_name}</span>
               </DialogTitle>
             </div>
             <div className="text-right">
@@ -1114,62 +1344,77 @@ function DetailClientDialog({
               <InfoRow label="Âge" value={dash(client.child_age)} />
               <InfoRow label="Date de naissance" value={dash(client.dob)} />
               <InfoRow label="Niveau / Classe" value={dash(client.level)} />
-              <InfoRow label="Date d'inscription" value={dash(new Date(client.created_at).toLocaleDateString("fr-FR"))} />
+              <InfoRow
+                label="Date d'inscription"
+                value={dash(new Date(client.created_at).toLocaleDateString("fr-FR"))}
+              />
               <InfoRow label="Enfants scolarisés" value={`${client.fratrie ?? 1}`} />
 
-      <SectionTitle icon={CalendarDays}>Parents & identité</SectionTitle>
-        <InfoRow label="Nom du père" value={dash(client.father_name)} />
-        <InfoRow label="Nom de la mère" value={dash(client.mother_name)} />
-        <InfoRow label="CIN / Passeport (père)" value={dash(client.cin)} />
-        <InfoRow label="CIN / Passeport (mère)" value={dash(client.cin_mother)} />
+              <SectionTitle icon={CalendarDays}>Parents & identité</SectionTitle>
+              <InfoRow label="Nom du père" value={dash(client.father_name)} />
+              <InfoRow label="Nom de la mère" value={dash(client.mother_name)} />
+              <InfoRow label="CIN / Passeport (père)" value={dash(client.cin)} />
+              <InfoRow label="CIN / Passeport (mère)" value={dash(client.cin_mother)} />
 
-        <SectionTitle icon={Briefcase}>Profession & adresse</SectionTitle>
-        <InfoRow label="Adresse" value={dash(client.address)} />
+              <SectionTitle icon={Briefcase}>Profession & adresse</SectionTitle>
+              <InfoRow label="Adresse" value={dash(client.address)} />
 
-        <SectionTitle icon={Phone}>Contact</SectionTitle>
-        <InfoRow label="Email du père" value={dash(client.email)} />
-        <InfoRow label="Email de la mère" value={dash(client.email2)} />
-        <InfoRow label="Téléphone 1" value={dash(client.phone)} />
-        <InfoRow label="Téléphone 2" value={dash(client.phone2)} />
+              <SectionTitle icon={Phone}>Contact</SectionTitle>
+              <InfoRow label="Email du père" value={dash(client.email)} />
+              <InfoRow label="Email de la mère" value={dash(client.email2)} />
+              <InfoRow label="Téléphone 1" value={dash(client.phone)} />
+              <InfoRow label="Téléphone 2" value={dash(client.phone2)} />
 
-        <SectionTitle icon={ShieldAlert}>Contact d'urgence</SectionTitle>
-        <InfoRow label="Notes" value={dash(client.notes)} />
+              <SectionTitle icon={ShieldAlert}>Contact d'urgence</SectionTitle>
+              <InfoRow label="Notes" value={dash(client.notes)} />
 
-        <SectionTitle icon={BookOpen}>Élèves</SectionTitle>
-        {(client.child_names ?? []).length > 0 ? (
-          (client.child_names ?? []).map((ch, i) => (
-            <div key={i} className="col-span-full rounded-xl bg-muted/40 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Élève {i + 1}   {ch.name}
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <InfoRow label="Date de naissance" value={dash(ch.dob)} />
-                <InfoRow label="Cycle" value={dash(ch.cycle)} />
-                <InfoRow label="Niveau" value={dash(ch.level)} />
-                <InfoRow label="Services" value={(ch.services ?? []).join(", ") || " "} />
-              </div>
-            </div>
-          ))
-        ) : (
-          <InfoRow label="Nom de l'élève" value={dash(client.child_name)} />
-        )}
+              <SectionTitle icon={BookOpen}>Élèves</SectionTitle>
+              {(client.child_names ?? []).length > 0 ? (
+                (client.child_names ?? []).map((ch, i) => (
+                  <div key={i} className="col-span-full rounded-xl bg-muted/40 p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Élève {i + 1} {ch.name}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <InfoRow label="Date de naissance" value={dash(ch.dob)} />
+                      <InfoRow label="Cycle" value={dash(ch.cycle)} />
+                      <InfoRow label="Niveau" value={dash(ch.level)} />
+                      <InfoRow label="Services" value={(ch.services ?? []).join(", ") || " "} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <InfoRow label="Nom de l'élève" value={dash(client.child_name)} />
+              )}
 
-        <SectionTitle icon={Bus}>Frais supplémentaires</SectionTitle>
-        {(() => {
-          const all = (client.child_names ?? []).flatMap((ch) => ch.frais ?? []);
-          const dedup = [...new Set(all as string[])];
-          return dedup.length > 0
-            ? dedup.map((f) => <InfoRow key={f} label={f} value="Souscrit" />)
-            : <InfoRow label="Aucun" value=" " />;
-        })()}
+              <SectionTitle icon={Bus}>Frais supplémentaires</SectionTitle>
+              {(() => {
+                const all = (client.child_names ?? []).flatMap((ch) => ch.frais ?? []);
+                const dedup = [...new Set(all as string[])];
+                return dedup.length > 0 ? (
+                  dedup.map((f) => <InfoRow key={f} label={f} value="Souscrit" />)
+                ) : (
+                  <InfoRow label="Aucun" value=" " />
+                );
+              })()}
 
               <SectionTitle icon={Utensils}>Paiement & remise</SectionTitle>
-              <InfoRow label="Frais mensuels" value={`${client.monthly_fee ?? 0} ${t.common.mad}`} />
+              <InfoRow
+                label="Frais mensuels"
+                value={`${client.monthly_fee ?? 0} ${t.common.mad}`}
+              />
               <InfoRow
                 label="Remise fratrie"
-                value={(client.remise ?? 0) > 0 ? `${client.remise}%   ${client.fratrie ?? 1} enfants` : "Aucune"}
+                value={
+                  (client.remise ?? 0) > 0
+                    ? `${client.remise}%   ${client.fratrie ?? 1} enfants`
+                    : "Aucune"
+                }
               />
-              <InfoRow label="Jour de paiement" value={client.payment_day ? `Le ${client.payment_day}` : " "} />
+              <InfoRow
+                label="Jour de paiement"
+                value={client.payment_day ? `Le ${client.payment_day}` : " "}
+              />
               <InfoRow label="Dette totale" value={`${client.debt ?? 0} ${t.common.mad}`} />
             </div>
           </div>
@@ -1266,12 +1511,17 @@ function PaymentDialog({
     return month ? `${month.long} ${y}` : value;
   }
 
-  function prevSchoolYear() { setSchoolYear((y) => y - 1); }
-  function nextSchoolYear() { setSchoolYear((y) => Math.min(y + 1, currentYear)); }
+  function prevSchoolYear() {
+    setSchoolYear((y) => y - 1);
+  }
+  function nextSchoolYear() {
+    setSchoolYear((y) => Math.min(y + 1, currentYear));
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    track("payment_started", { source: "family_detail" });
     setBusy(true);
     const fd = new FormData(e.currentTarget);
     try {
@@ -1285,6 +1535,12 @@ function PaymentDialog({
           period: period || undefined,
         },
       });
+      track("payment_created", {
+        payment_method: paymentMethod(String(fd.get("mode") || "especes")),
+        amount_bucket: amountBucket(Number(fd.get("montant") ?? 0)),
+      });
+      trackFirstOnce("payment_recorded", "first_payment_recorded");
+      track("receipt_generated", {});
       const clientData = clientEmail ? await getClient({ data: clientId }) : null;
       const settings = clientEmail ? await getSettings({}) : null;
       const schoolInfo = settings?.school_info ?? {};
@@ -1306,7 +1562,12 @@ function PaymentDialog({
               period: String(payment.period),
               monthly_fee: String((clientData as any)?.monthly_fee ?? 0),
               remise: String((clientData as any)?.remise ?? 0),
-              discount_amount: String(Math.round(((clientData as any)?.monthly_fee ?? 0) * ((clientData as any)?.remise ?? 0) / 100)),
+              discount_amount: String(
+                Math.round(
+                  (((clientData as any)?.monthly_fee ?? 0) * ((clientData as any)?.remise ?? 0)) /
+                    100,
+                ),
+              ),
               amount_due: String(payment.amount),
               amount_paid: String(payment.amount),
               payment_date: String(payment.date),
@@ -1333,9 +1594,12 @@ function PaymentDialog({
             whatsappOptin: Boolean((clientData as any)?.whatsapp_optin),
           },
         });
+        track("receipt_sent", { channel: clientEmail ? "email" : "whatsapp" });
       }
       if (payment.id) {
-        await updatePaymentInvoice({ data: { id: payment.id, invoice_sent: true } }).catch(() => {});
+        await updatePaymentInvoice({ data: { id: payment.id, invoice_sent: true } }).catch(
+          () => {},
+        );
       }
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
@@ -1352,15 +1616,28 @@ function PaymentDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogSurface, "max-w-[480px]")}>
-        <DialogDescription className="sr-only">{interpolate(p.srDesc, { name: clientLabel })}</DialogDescription>
+        <DialogDescription className="sr-only">
+          {interpolate(p.srDesc, { name: clientLabel })}
+        </DialogDescription>
         <div className="border-t-4 border-t-[#6C4DF6]">
           <div className="border-b border-[#001B3D]/10 px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{p.eyebrow}</p>
-            <DialogTitle className="mt-2 text-left font-display text-xl font-semibold text-foreground">{p.title}</DialogTitle>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {p.eyebrow}
+            </p>
+            <DialogTitle className="mt-2 text-left font-display text-xl font-semibold text-foreground">
+              {p.title}
+            </DialogTitle>
           </div>
           <form className="space-y-4 px-6 py-5" onSubmit={handleSubmit}>
             <Field id="pay-montant" label={f.amountMad}>
-              <Input id="pay-montant" name="montant" type="number" defaultValue={0} min={0} className={inputClass} />
+              <Input
+                id="pay-montant"
+                name="montant"
+                type="number"
+                defaultValue={0}
+                min={0}
+                className={inputClass}
+              />
             </Field>
             <Field id="pay-date" label={f.paymentDate}>
               <Input id="pay-date" name="date" type="date" className={inputClass} />
@@ -1382,20 +1659,36 @@ function PaymentDialog({
               <Popover>
                 <PopoverTrigger asChild>
                   <button
-                    className={cn(selectTriggerClass, "flex w-full items-center justify-between gap-1 px-3")}
+                    className={cn(
+                      selectTriggerClass,
+                      "flex w-full items-center justify-between gap-1 px-3",
+                    )}
                     data-placeholder={selectedPeriod ? undefined : ""}
                   >
-                    <span className="truncate">{selectedPeriod ? formatPeriod(selectedPeriod) : "Mois en cours"}</span>
+                    <span className="truncate">
+                      {selectedPeriod ? formatPeriod(selectedPeriod) : "Mois en cours"}
+                    </span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground/50" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-[280px] p-3">
                   <div className="mb-3 flex items-center justify-between">
-                    <button type="button" onClick={prevSchoolYear} className="grid h-7 w-7 place-items-center rounded-md hover:bg-muted">
+                    <button
+                      type="button"
+                      onClick={prevSchoolYear}
+                      className="grid h-7 w-7 place-items-center rounded-md hover:bg-muted"
+                    >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <span className="text-sm font-medium">{schoolYear}/{schoolYear + 1}</span>
-                    <button type="button" onClick={nextSchoolYear} className="grid h-7 w-7 place-items-center rounded-md hover:bg-muted disabled:opacity-30" disabled={schoolYear >= currentYear}>
+                    <span className="text-sm font-medium">
+                      {schoolYear}/{schoolYear + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={nextSchoolYear}
+                      className="grid h-7 w-7 place-items-center rounded-md hover:bg-muted disabled:opacity-30"
+                      disabled={schoolYear >= currentYear}
+                    >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -1412,7 +1705,9 @@ function PaymentDialog({
                           disabled={future}
                           className={cn(
                             "rounded-md px-1 py-2 text-sm transition-colors",
-                            selectedPeriod === val ? "bg-[#17B3A6] text-white font-semibold" : "hover:bg-muted",
+                            selectedPeriod === val
+                              ? "bg-[#17B3A6] text-white font-semibold"
+                              : "hover:bg-muted",
                             future && "text-muted-foreground/30 cursor-not-allowed",
                           )}
                         >
@@ -1434,7 +1729,11 @@ function PaymentDialog({
               >
                 {t.common.cancel}
               </button>
-              <button type="submit" disabled={busy} className={cn(primaryPill, "px-5 py-2 disabled:opacity-60")}>
+              <button
+                type="submit"
+                disabled={busy}
+                className={cn(primaryPill, "px-5 py-2 disabled:opacity-60")}
+              >
                 {busy ? "..." : p.confirm}
               </button>
             </div>
@@ -1496,7 +1795,9 @@ function StudentModal({
         </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-[#6C4DF6]">
           <div className="shrink-0 border-b border-[#001B3D]/10 px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Élève</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Élève
+            </p>
             <DialogTitle className="mt-2 text-left font-display text-xl font-semibold text-foreground">
               {mode === "add" ? "Ajouter un élève" : "Modifier l'élève"}
             </DialogTitle>
@@ -1546,11 +1847,14 @@ function EditClientDialog({
   const queryClient = useQueryClient();
   const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: getSettings });
   const { data: levels } = useQuery({ queryKey: ["levels"], queryFn: listLevels });
-  const services: Array<{ name: string; price: number; enabled: boolean }> = settings?.services ?? [];
+  const services: Array<{ name: string; price: number; enabled: boolean }> =
+    settings?.services ?? [];
   const frais: Array<{ name: string; price: number; enabled: boolean }> = settings?.frais ?? [];
   const [remise, setRemise] = useState<number>(client.remise ?? 0);
   const [children, setChildren] = useState<ChildFormData[]>(() => initialChildren(client));
-  const [studentModal, setStudentModal] = useState<{ mode: "add" } | { mode: "edit"; index: number } | null>(null);
+  const [studentModal, setStudentModal] = useState<
+    { mode: "add" } | { mode: "edit"; index: number } | null
+  >(null);
   const [busy, setBusy] = useState(false);
 
   // Données héritées : le niveau est connu mais pas le cycle, or le select
@@ -1593,11 +1897,17 @@ function EditClientDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogSurface, "w-[min(100vw-1.5rem,640px)] max-w-[640px]")}>
-        <DialogDescription className="sr-only">{interpolate(e.srDesc, { name: client.child_name })}</DialogDescription>
+        <DialogDescription className="sr-only">
+          {interpolate(e.srDesc, { name: client.child_name })}
+        </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-[#6C4DF6]">
           <div className="shrink-0 border-b border-[#001B3D]/10 px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{e.eyebrow}</p>
-            <DialogTitle className="mt-2 text-left font-display text-xl font-semibold text-foreground">{e.title}</DialogTitle>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {e.eyebrow}
+            </p>
+            <DialogTitle className="mt-2 text-left font-display text-xl font-semibold text-foreground">
+              {e.title}
+            </DialogTitle>
           </div>
           <form
             className="min-h-0 flex-1 space-y-4 overflow-y-auto scroll-touch px-6 py-5"
@@ -1610,7 +1920,9 @@ function EditClientDialog({
               const firstChild = cleanChildren[0];
               // Les services/frais vivent désormais sur l'élève : on réagrège au
               // niveau famille pour garder les filtres et les graphiques justes.
-              const aggregatedServices = [...new Set(cleanChildren.flatMap((c) => c.services ?? []))];
+              const aggregatedServices = [
+                ...new Set(cleanChildren.flatMap((c) => c.services ?? [])),
+              ];
               const aggregatedFrais = [...new Set(cleanChildren.flatMap((c) => c.frais ?? []))];
               try {
                 await updateClient({
@@ -1637,6 +1949,7 @@ function EditClientDialog({
                     payment_day: Number(fd.get("payment_day") ?? client.payment_day ?? 1),
                   },
                 });
+                track("family_updated", { role: "admin" });
                 queryClient.invalidateQueries({ queryKey: ["clients"] });
                 toast.success("Client modifié");
                 onOpenChange(false);
@@ -1649,7 +1962,12 @@ function EditClientDialog({
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field id="e-parent" label={t.common.parent}>
-                <Input id="e-parent" name="parent_name" defaultValue={client.parent_name} className={inputClass} />
+                <Input
+                  id="e-parent"
+                  name="parent_name"
+                  defaultValue={client.parent_name}
+                  className={inputClass}
+                />
               </Field>
               <div className="sm:col-span-2">
                 <div className="flex items-center justify-between gap-2">
@@ -1676,7 +1994,9 @@ function EditClientDialog({
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
                             {ch.level || "Niveau non défini"}
-                            {(ch.services ?? []).length > 0 ? ` · ${ch.services.length} service(s)` : ""}
+                            {(ch.services ?? []).length > 0
+                              ? ` · ${ch.services.length} service(s)`
+                              : ""}
                           </p>
                         </div>
                         <button
@@ -1692,7 +2012,10 @@ function EditClientDialog({
                           <button
                             type="button"
                             onClick={() => removeStudent(i)}
-                            className={cn(iconButton, "text-[#FF666B] hover:bg-[#FF666B]/10 hover:text-[#FF666B]")}
+                            className={cn(
+                              iconButton,
+                              "text-[#FF666B] hover:bg-[#FF666B]/10 hover:text-[#FF666B]",
+                            )}
                             title="Retirer l'élève"
                             aria-label={`Retirer ${ch.name || `l'élève ${i + 1}`}`}
                           >
@@ -1705,29 +2028,68 @@ function EditClientDialog({
                 )}
               </div>
               <Field id="e-father" label={f.fatherName}>
-                <Input id="e-father" name="father_name" defaultValue={client.father_name} className={inputClass} />
+                <Input
+                  id="e-father"
+                  name="father_name"
+                  defaultValue={client.father_name}
+                  className={inputClass}
+                />
               </Field>
               <Field id="e-mother" label={f.motherName}>
-                <Input id="e-mother" name="mother_name" defaultValue={client.mother_name} className={inputClass} />
+                <Input
+                  id="e-mother"
+                  name="mother_name"
+                  defaultValue={client.mother_name}
+                  className={inputClass}
+                />
               </Field>
               <Field id="e-cin" label={f.cinPassport}>
                 <Input id="e-cin" name="cin" defaultValue={client.cin} className={inputClass} />
               </Field>
               <Field id="e-email" label="Email du père">
-                <Input id="e-email" name="email" type="email" defaultValue={client.email} className={inputClass} />
+                <Input
+                  id="e-email"
+                  name="email"
+                  type="email"
+                  defaultValue={client.email}
+                  className={inputClass}
+                />
               </Field>
               <Field id="e-email2" label="Email de la mère">
-                <Input id="e-email2" name="email2" type="email" defaultValue={client.email2} className={inputClass} />
+                <Input
+                  id="e-email2"
+                  name="email2"
+                  type="email"
+                  defaultValue={client.email2}
+                  className={inputClass}
+                />
               </Field>
               <Field id="e-phone" label="Téléphone du père">
-                <Input id="e-phone" name="phone" type="tel" defaultValue={client.phone} className={inputClass} />
+                <Input
+                  id="e-phone"
+                  name="phone"
+                  type="tel"
+                  defaultValue={client.phone}
+                  className={inputClass}
+                />
               </Field>
               <Field id="e-phone2" label="Téléphone de la mère">
-                <Input id="e-phone2" name="phone2" type="tel" defaultValue={client.phone2} className={inputClass} />
+                <Input
+                  id="e-phone2"
+                  name="phone2"
+                  type="tel"
+                  defaultValue={client.phone2}
+                  className={inputClass}
+                />
               </Field>
               <div className="sm:col-span-2">
                 <Field id="e-notes" label="Notes">
-                  <Input id="e-notes" name="notes" defaultValue={client.notes} className={inputClass} />
+                  <Input
+                    id="e-notes"
+                    name="notes"
+                    defaultValue={client.notes}
+                    className={inputClass}
+                  />
                 </Field>
               </div>
               <Field id="e-remise" label="Remise fratrie (%)">
@@ -1742,13 +2104,23 @@ function EditClientDialog({
                 />
               </Field>
               <Field id="e-jour" label={f.paymentDay}>
-                <Input id="e-jour" name="payment_day" type="number" min={1} max={31} defaultValue={client.payment_day ?? 1} className={inputClass} />
+                <Input
+                  id="e-jour"
+                  name="payment_day"
+                  type="number"
+                  min={1}
+                  max={31}
+                  defaultValue={client.payment_day ?? 1}
+                  className={inputClass}
+                />
               </Field>
               <div className="sm:col-span-2">
                 <p className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                   Frais mensuels recalculés :{" "}
-                  <span className="font-semibold tabular-nums text-foreground">{totalMonthly} {t.common.mad}</span>{" "}
-                    niveaux, services et frais des élèves.
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {totalMonthly} {t.common.mad}
+                  </span>{" "}
+                  niveaux, services et frais des élèves.
                 </p>
               </div>
             </div>
@@ -1760,7 +2132,11 @@ function EditClientDialog({
               >
                 {t.common.cancel}
               </button>
-              <button type="submit" disabled={busy} className={cn(primaryPill, "px-5 py-2 disabled:opacity-60")}>
+              <button
+                type="submit"
+                disabled={busy}
+                className={cn(primaryPill, "px-5 py-2 disabled:opacity-60")}
+              >
                 {busy ? "..." : t.common.saveChanges}
               </button>
             </div>
@@ -1776,7 +2152,9 @@ function EditClientDialog({
           key={studentModal.mode === "edit" ? `edit-${studentModal.index}` : "add"}
           mode={studentModal.mode}
           initial={
-            studentModal.mode === "edit" ? children[studentModal.index] ?? emptyChild() : emptyChild()
+            studentModal.mode === "edit"
+              ? (children[studentModal.index] ?? emptyChild())
+              : emptyChild()
           }
           onOpenChange={(o) => !o && setStudentModal(null)}
           onConfirm={(child) => {
@@ -1792,5 +2170,3 @@ function EditClientDialog({
     </Dialog>
   );
 }
-
-

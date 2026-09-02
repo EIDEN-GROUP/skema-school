@@ -1,3 +1,4 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -24,10 +25,37 @@ import {
   iconButton,
 } from "@/lib/dash-ui";
 import { toast } from "sonner";
-import { Plus, Trash2, Save, Percent, Calendar, Package, GraduationCap, X, BadgeDollarSign, ChevronDown, Upload, FileText, Image as ImageIcon, GripVertical, Maximize2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
+import {
+  Plus,
+  Trash2,
+  Save,
+  Percent,
+  Calendar,
+  Package,
+  GraduationCap,
+  X,
+  BadgeDollarSign,
+  ChevronDown,
+  Upload,
+  FileText,
+  Image as ImageIcon,
+  GripVertical,
+  Maximize2,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/settings")({
-  head: () => ({ meta: [{ title: "Paramètres · SKEMA" }] }),
+  head: () =>
+    buildMeta({
+      title: "Paramètres · SKEMA",
+      description: "Configuration de l'école : niveaux, services, frais, paiements et reçus.",
+      path: "/dashboard/settings",
+      noindex: true,
+    }),
   component: SettingsPage,
 });
 
@@ -90,7 +118,12 @@ const SETTINGS_TABS = [
     icon: Package,
     hint: "Les coordonnées de l'école.",
   },
-  { id: "recu", label: "Reçu", icon: FileText, hint: "Le modèle de reçu envoyé aux familles et les documents officiels." },
+  {
+    id: "recu",
+    label: "Reçu",
+    icon: FileText,
+    hint: "Le modèle de reçu envoyé aux familles et les documents officiels.",
+  },
 ] as const;
 
 function SettingsPage() {
@@ -100,7 +133,11 @@ function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-4xl pb-8">
       <header className="relative">
-        <Sticker name="gear" tilt={-6} className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block" />
+        <Sticker
+          name="gear"
+          tilt={-6}
+          className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block"
+        />
         <p className={eyebrowClass}>Configuration</p>
         <h1 className="font-hand mt-1.5 text-3xl tracking-tight text-foreground sm:text-4xl md:text-5xl">
           Paramètres
@@ -175,7 +212,9 @@ function ComboboxInput({
   const [focused, setFocused] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const filtered = options.filter((o) => o !== value && o.toLowerCase().includes(value.toLowerCase()));
+  const filtered = options.filter(
+    (o) => o !== value && o.toLowerCase().includes(value.toLowerCase()),
+  );
   const show = open && filtered.length > 0;
 
   // Panel is portaled to <body> (fixed-positioned off the input's own rect) so it
@@ -191,9 +230,20 @@ function ComboboxInput({
     <div ref={wrapRef} className="relative">
       <input
         value={value}
-        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => { setOpen(true); setFocused(true); }}
-        onBlur={() => setTimeout(() => { setOpen(false); setFocused(false); }, 150)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => {
+          setOpen(true);
+          setFocused(true);
+        }}
+        onBlur={() =>
+          setTimeout(() => {
+            setOpen(false);
+            setFocused(false);
+          }, 150)
+        }
         placeholder={placeholder}
         aria-label={label}
         className={cn(fieldClass, "w-full pr-8")}
@@ -215,7 +265,10 @@ function ComboboxInput({
                 <button
                   key={opt}
                   type="button"
-                  onMouseDown={() => { onChange(opt); setOpen(false); }}
+                  onMouseDown={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}
                   className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[#6C4DF6]/20"
                 >
                   {opt}
@@ -248,8 +301,14 @@ function LevelsSection() {
   );
 
   const create = useMutation({
-    mutationFn: (input: { name: string; monthly_fee: number; cycle?: string; max_students?: number }) => createLevel({ data: input }),
+    mutationFn: (input: {
+      name: string;
+      monthly_fee: number;
+      cycle?: string;
+      max_students?: number;
+    }) => createLevel({ data: input }),
     onSuccess: () => {
+      track("settings_updated", { section: "scolarite", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["levels"] });
       toast.success("Niveau créé");
       setNewName("");
@@ -262,6 +321,7 @@ function LevelsSection() {
   const remove = useMutation({
     mutationFn: (id: string) => deleteLevel({ data: id }),
     onSuccess: () => {
+      track("settings_updated", { section: "scolarite", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["levels"] });
       toast.success("Niveau supprimé");
     },
@@ -269,9 +329,15 @@ function LevelsSection() {
   });
 
   const update = useMutation({
-    mutationFn: (input: { id: string; name?: string; monthly_fee?: number; cycle?: string; max_students?: number }) =>
-      updateLevel({ data: input }),
+    mutationFn: (input: {
+      id: string;
+      name?: string;
+      monthly_fee?: number;
+      cycle?: string;
+      max_students?: number;
+    }) => updateLevel({ data: input }),
     onSuccess: () => {
+      track("settings_updated", { section: "scolarite", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["levels"] });
       toast.success("Niveau mis à jour");
       setEditId(null);
@@ -287,7 +353,9 @@ function LevelsSection() {
       title="Niveaux scolaires"
       description="Définissez les niveaux, leur cycle/catégorie et leurs frais mensuels"
       footer={
-        <div className={cn(rowClass, "flex-col gap-3 border-t border-[#001B3D]/10 py-4 sm:flex-col")}>
+        <div
+          className={cn(rowClass, "flex-col gap-3 border-t border-[#001B3D]/10 py-4 sm:flex-col")}
+        >
           <div className="flex w-full flex-wrap items-end gap-3">
             <div className="flex-1 basis-full sm:basis-[180px]">
               <p className={cn(labelClass, "mb-1")}>Niveau</p>
@@ -340,7 +408,13 @@ function LevelsSection() {
             </div>
             <button
               onClick={() => {
-                if (canAdd) create.mutate({ name: newName.trim(), monthly_fee: Number(newFee), cycle: newCycle.trim(), max_students: Number(newMax) || 0 });
+                if (canAdd)
+                  create.mutate({
+                    name: newName.trim(),
+                    monthly_fee: Number(newFee),
+                    cycle: newCycle.trim(),
+                    max_students: Number(newMax) || 0,
+                  });
               }}
               disabled={!canAdd || create.isPending}
               className={cn(
@@ -386,22 +460,28 @@ function LevelsSection() {
                 <span className="shrink-0 text-xs text-muted-foreground">MAD</span>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-              <input
-                value={editMax}
-                onChange={(e) => setEditMax(e.target.value)}
-                type="number"
-                min="0"
-                inputMode="numeric"
-                aria-label="Limite d'élèves"
-                className={cn(fieldClass, "w-20")}
-              />
-              <span className="text-xs text-muted-foreground">élèves</span>
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <button
-                onClick={() =>
-                  update.mutate({ id: l.id, name: editName.trim(), monthly_fee: Number(editFee), cycle: editCycle.trim(), max_students: Number(editMax) || 0 })
-                }
+                <input
+                  value={editMax}
+                  onChange={(e) => setEditMax(e.target.value)}
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  aria-label="Limite d'élèves"
+                  className={cn(fieldClass, "w-20")}
+                />
+                <span className="text-xs text-muted-foreground">élèves</span>
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <button
+                  onClick={() =>
+                    update.mutate({
+                      id: l.id,
+                      name: editName.trim(),
+                      monthly_fee: Number(editFee),
+                      cycle: editCycle.trim(),
+                      max_students: Number(editMax) || 0,
+                    })
+                  }
                   disabled={update.isPending}
                   className={cn(primaryPill, "px-4 py-2 disabled:opacity-50")}
                 >
@@ -417,9 +497,7 @@ function LevelsSection() {
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                 {l.name}
               </span>
-              <span className="shrink-0 text-sm text-muted-foreground">
-                {l.cycle || " "}
-              </span>
+              <span className="shrink-0 text-sm text-muted-foreground">{l.cycle || " "}</span>
               <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
                 {l.monthly_fee} MAD
               </span>
@@ -441,20 +519,17 @@ function LevelsSection() {
                 </button>
                 <button
                   onClick={() => {
-                    toast.warning(
-                      `Supprimer le niveau « ${l.name} » ?`,
-                      {
-                        duration: 8000,
-                        action: {
-                          label: "Supprimer",
-                          onClick: () => remove.mutate(l.id),
-                        },
-                        cancel: {
-                          label: "Annuler",
-                          onClick: () => {},
-                        },
+                    toast.warning(`Supprimer le niveau « ${l.name} » ?`, {
+                      duration: 8000,
+                      action: {
+                        label: "Supprimer",
+                        onClick: () => remove.mutate(l.id),
                       },
-                    );
+                      cancel: {
+                        label: "Annuler",
+                        onClick: () => {},
+                      },
+                    });
                   }}
                   className={cn(iconButton, "text-red-500 hover:bg-red-50 hover:text-red-600")}
                   aria-label={`Supprimer ${l.name}`}
@@ -492,6 +567,7 @@ function ServicesSection() {
   const save = useMutation({
     mutationFn: (value: Service[]) => updateSetting({ data: { key: "services", value } }),
     onSuccess: () => {
+      track("settings_updated", { section: "scolarite", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       setDraft(null);
       toast.success("Services mis à jour");
@@ -646,6 +722,7 @@ function FraisSection() {
   const save = useMutation({
     mutationFn: (value: Service[]) => updateSetting({ data: { key: "frais", value } }),
     onSuccess: () => {
+      track("settings_updated", { section: "scolarite", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       setDraft(null);
       toast.success("Frais mis à jour");
@@ -798,14 +875,12 @@ function SiblingDiscountSection() {
       setValue(String(settings.sibling_discount.value ?? 10));
       setMaxKids(String(settings.sibling_discount.max_kids ?? 99));
     }
-  }, [
-    settings?.sibling_discount?.value,
-    settings?.sibling_discount?.max_kids,
-  ]);
+  }, [settings?.sibling_discount?.value, settings?.sibling_discount?.max_kids]);
 
   const save = useMutation({
     mutationFn: (val: any) => updateSetting({ data: { key: "sibling_discount", value: val } }),
     onSuccess: () => {
+      track("settings_updated", { section: "scolarite", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       toast.success("Réduction mise à jour");
     },
@@ -894,11 +969,16 @@ function PaymentDueSection() {
       setGraceDays(String(settings.payment_due.grace_days ?? 5));
       setEscalationDays(String(settings.payment_due.escalation_days ?? 15));
     }
-  }, [settings?.payment_due?.day, settings?.payment_due?.grace_days, settings?.payment_due?.escalation_days]);
+  }, [
+    settings?.payment_due?.day,
+    settings?.payment_due?.grace_days,
+    settings?.payment_due?.escalation_days,
+  ]);
 
   const save = useMutation({
     mutationFn: (val: any) => updateSetting({ data: { key: "payment_due", value: val } }),
     onSuccess: () => {
+      track("settings_updated", { section: "paiements", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       toast.success("Échéance mise à jour");
     },
@@ -915,8 +995,9 @@ function PaymentDueSection() {
       footer={
         <div className="border-t border-[#001B3D]/10 bg-muted/40 px-4 py-3 sm:px-6">
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Un client non payé est d'abord marqué <strong className="text-foreground">retard</strong> à
-            partir du jour d'échéance + délai de grâce. Si aucun paiement n'arrive dans les
+            Un client non payé est d'abord marqué{" "}
+            <strong className="text-foreground">retard</strong> à partir du jour d'échéance + délai
+            de grâce. Si aucun paiement n'arrive dans les
             <strong className="text-foreground"> {escalationDays} jours </strong>
             suivants, il passe en <strong className="text-foreground">impayé</strong>.
           </p>
@@ -983,7 +1064,13 @@ function PaymentDueSection() {
 
         <div className="flex justify-end border-t border-[#001B3D]/10 pt-4">
           <button
-            onClick={() => save.mutate({ day: Number(day), grace_days: Number(graceDays), escalation_days: Number(escalationDays) })}
+            onClick={() =>
+              save.mutate({
+                day: Number(day),
+                grace_days: Number(graceDays),
+                escalation_days: Number(escalationDays),
+              })
+            }
             disabled={save.isPending}
             className={cn(primaryPill, "w-full justify-center disabled:opacity-50 sm:w-auto")}
           >
@@ -1012,11 +1099,17 @@ function SchoolInfoSection() {
       setAddress(settings?.school_address ?? "");
       setPhone(settings?.school_phone ?? "");
     }
-  }, [settings?.school_info, settings?.school_name, settings?.school_address, settings?.school_phone]);
+  }, [
+    settings?.school_info,
+    settings?.school_name,
+    settings?.school_address,
+    settings?.school_phone,
+  ]);
 
   const save = useMutation({
     mutationFn: (val: any) => updateSetting({ data: { key: "school_info", value: val } }),
     onSuccess: () => {
+      track("settings_updated", { section: "etablissement", role: "admin" });
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       toast.success("Informations de l'école mises à jour");
     },
@@ -1034,7 +1127,9 @@ function SchoolInfoSection() {
       <div className="space-y-5 px-4 py-5 sm:px-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label htmlFor="school-name" className={labelClass}>Nom de l'école</label>
+            <label htmlFor="school-name" className={labelClass}>
+              Nom de l'école
+            </label>
             <input
               id="school-name"
               value={name}
@@ -1044,7 +1139,9 @@ function SchoolInfoSection() {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="school-phone" className={labelClass}>Téléphone</label>
+            <label htmlFor="school-phone" className={labelClass}>
+              Téléphone
+            </label>
             <input
               id="school-phone"
               value={phone}
@@ -1055,7 +1152,9 @@ function SchoolInfoSection() {
           </div>
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="school-address" className={labelClass}>Adresse</label>
+          <label htmlFor="school-address" className={labelClass}>
+            Adresse
+          </label>
           <input
             id="school-address"
             value={address}
@@ -1111,7 +1210,11 @@ function DocumentsSection() {
 
       const result = await analyzePdfTemplate({ data: { base64Png } });
       if (result.ok) {
-        const fields: ReceiptField[] = result.fields.map((f: any) => ({ key: f.key, x: f.x, y: f.y }));
+        const fields: ReceiptField[] = result.fields.map((f: any) => ({
+          key: f.key,
+          x: f.x,
+          y: f.y,
+        }));
         setAiFields(fields);
         setAiStatus("done");
         // Save AI fields + switch source to AI
@@ -1179,7 +1282,12 @@ function DocumentsSection() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {template.url ? (
-              <a href={template.url} target="_blank" rel="noreferrer" className={cn(ghostPill, "px-3 py-1.5 text-xs")}>
+              <a
+                href={template.url}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(ghostPill, "px-3 py-1.5 text-xs")}
+              >
                 <FileText className="h-3.5 w-3.5" /> Voir
               </a>
             ) : null}
@@ -1193,7 +1301,10 @@ function DocumentsSection() {
               />
             </label>
             {template.url ? (
-              <button onClick={() => remove.mutate("pdf_template")} className={cn(ghostPill, "px-3 py-1.5 text-xs text-red-500")}>
+              <button
+                onClick={() => remove.mutate("pdf_template")}
+                className={cn(ghostPill, "px-3 py-1.5 text-xs text-red-500")}
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             ) : null}
@@ -1233,7 +1344,9 @@ function DocumentsSection() {
                   aiStatus === "error" && "bg-red-500 hover:bg-red-600",
                 )}
               >
-                <Sparkles className={cn("h-3.5 w-3.5", aiStatus === "loading" && "animate-pulse")} />
+                <Sparkles
+                  className={cn("h-3.5 w-3.5", aiStatus === "loading" && "animate-pulse")}
+                />
                 {aiStatus === "loading"
                   ? "Analyse…"
                   : aiStatus === "error"
@@ -1252,7 +1365,12 @@ function DocumentsSection() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {stamp.url ? (
-              <a href={stamp.url} target="_blank" rel="noreferrer" className={cn(ghostPill, "px-3 py-1.5 text-xs")}>
+              <a
+                href={stamp.url}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(ghostPill, "px-3 py-1.5 text-xs")}
+              >
                 <ImageIcon className="h-3.5 w-3.5" /> Voir
               </a>
             ) : null}
@@ -1266,7 +1384,10 @@ function DocumentsSection() {
               />
             </label>
             {stamp.url ? (
-              <button onClick={() => remove.mutate("stamp")} className={cn(ghostPill, "px-3 py-1.5 text-xs text-red-500")}>
+              <button
+                onClick={() => remove.mutate("stamp")}
+                className={cn(ghostPill, "px-3 py-1.5 text-xs text-red-500")}
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             ) : null}
@@ -1286,7 +1407,9 @@ function PdfTemplateEditorSection() {
   const activeSource = (settings?.active_field_source as string) ?? "manual";
   const hasAi = savedAiFields.length > 0;
   const [fields, setFields] = useState<ReceiptField[] | null>(null);
-  const [source, setSource] = useState<"manual" | "ai">(activeSource === "ai" && hasAi ? "ai" : "manual");
+  const [source, setSource] = useState<"manual" | "ai">(
+    activeSource === "ai" && hasAi ? "ai" : "manual",
+  );
   const current = fields ?? (source === "ai" ? savedAiFields : savedManualFields);
   const isAiMode = source === "ai";
   const dirty = fields !== null && !isAiMode;
@@ -1294,7 +1417,8 @@ function PdfTemplateEditorSection() {
   const [dragging, setDragging] = useState<number | null>(null);
 
   const save = useMutation({
-    mutationFn: (value: ReceiptField[]) => updateSetting({ data: { key: "receipt_fields", value } }),
+    mutationFn: (value: ReceiptField[]) =>
+      updateSetting({ data: { key: "receipt_fields", value } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       setFields(null);
@@ -1313,10 +1437,22 @@ function PdfTemplateEditorSection() {
   });
 
   const allPlaceholders = [
-    "school_name", "school_address", "school_phone",
-    "receipt_number", "date", "parent_name", "children_names",
-    "period", "monthly_fee", "remise", "discount_amount",
-    "amount_due", "amount_paid", "payment_date", "remaining", "payment_mode",
+    "school_name",
+    "school_address",
+    "school_phone",
+    "receipt_number",
+    "date",
+    "parent_name",
+    "children_names",
+    "period",
+    "monthly_fee",
+    "remise",
+    "discount_amount",
+    "amount_due",
+    "amount_paid",
+    "payment_date",
+    "remaining",
+    "payment_mode",
     "stamp",
   ];
 
@@ -1352,7 +1488,11 @@ function PdfTemplateEditorSection() {
     const onMove = (ev: MouseEvent) => {
       const dx = ((ev.clientX - startX) / rect.width) * 100;
       const dy = ((ev.clientY - startY) / rect.height) * 100;
-      updatePos(idx, Math.max(0, Math.min(100, startPctX + dx)), Math.max(0, Math.min(100, startPctY + dy)));
+      updatePos(
+        idx,
+        Math.max(0, Math.min(100, startPctX + dx)),
+        Math.max(0, Math.min(100, startPctY + dy)),
+      );
     };
     const onUp = () => {
       setDragging(null);
@@ -1374,33 +1514,39 @@ function PdfTemplateEditorSection() {
           className="h-full w-full"
           style={{ pointerEvents: "none" }}
         />
-      {current.map((f, i) => (
-        <div
-          key={f.key}
-          onMouseDown={(e) => { if (!isAiMode) handleMouseDown(i, e); }}
-          className={cn(
-            "absolute z-10 flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-mono font-medium shadow-sm transition-shadow",
-            isAiMode
-              ? "cursor-default bg-white/80 text-[#001B3D]"
-              : "cursor-grab hover:shadow-md",
-            dragging === i ? "shadow-md ring-2 ring-[#17B3A6] cursor-grabbing" : "",
-            f.key === "stamp" ? "bg-[#FF666B]/15 text-[#FF666B] ring-[#FF666B]" : "",
-          )}
-          style={{ left: `${f.x}%`, top: `${f.y}%`, transform: "translate(-50%, -50%)" }}
-        >
-          {!isAiMode && <GripVertical className="h-3 w-3 shrink-0 opacity-60" />}
-          <span className="truncate max-w-[120px]">{'{'}{f.key}{'}'}</span>
-          {!isAiMode && (
-            <button
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => removeField(i)}
-              className="ml-0.5 grid h-4 w-4 place-items-center rounded-full hover:bg-black/10"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-      ))}
+        {current.map((f, i) => (
+          <div
+            key={f.key}
+            onMouseDown={(e) => {
+              if (!isAiMode) handleMouseDown(i, e);
+            }}
+            className={cn(
+              "absolute z-10 flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-mono font-medium shadow-sm transition-shadow",
+              isAiMode
+                ? "cursor-default bg-white/80 text-[#001B3D]"
+                : "cursor-grab hover:shadow-md",
+              dragging === i ? "shadow-md ring-2 ring-[#17B3A6] cursor-grabbing" : "",
+              f.key === "stamp" ? "bg-[#FF666B]/15 text-[#FF666B] ring-[#FF666B]" : "",
+            )}
+            style={{ left: `${f.x}%`, top: `${f.y}%`, transform: "translate(-50%, -50%)" }}
+          >
+            {!isAiMode && <GripVertical className="h-3 w-3 shrink-0 opacity-60" />}
+            <span className="truncate max-w-[120px]">
+              {"{"}
+              {f.key}
+              {"}"}
+            </span>
+            {!isAiMode && (
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => removeField(i)}
+                className="ml-0.5 grid h-4 w-4 place-items-center rounded-full hover:bg-black/10"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1422,27 +1568,32 @@ function PdfTemplateEditorSection() {
             <div className="flex gap-1">
               <button
                 type="button"
-                onClick={() => { setSource("manual"); saveFieldSource.mutate("manual"); }}
+                onClick={() => {
+                  setSource("manual");
+                  saveFieldSource.mutate("manual");
+                }}
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
-                  !isAiMode
-                    ? "bg-[#001B3D] text-white"
-                    : "text-muted-foreground hover:bg-muted",
+                  !isAiMode ? "bg-[#001B3D] text-white" : "text-muted-foreground hover:bg-muted",
                 )}
               >
                 Manuel
               </button>
               <button
                 type="button"
-                onClick={() => { setSource("ai"); saveFieldSource.mutate("ai"); }}
+                onClick={() => {
+                  setSource("ai");
+                  saveFieldSource.mutate("ai");
+                }}
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
-                  isAiMode
-                    ? "bg-[#001B3D] text-white"
-                    : "text-muted-foreground hover:bg-muted",
+                  isAiMode ? "bg-[#001B3D] text-white" : "text-muted-foreground hover:bg-muted",
                 )}
               >
-                IA {hasAi ? `(${savedAiFields.length} champ${savedAiFields.length > 1 ? "s" : ""})` : ""}
+                IA{" "}
+                {hasAi
+                  ? `(${savedAiFields.length} champ${savedAiFields.length > 1 ? "s" : ""})`
+                  : ""}
               </button>
             </div>
           </div>
@@ -1457,67 +1608,91 @@ function PdfTemplateEditorSection() {
               {current.length} champ(s) positionné(s) sur le template{isAiMode ? " (IA)" : ""}.
               {dirty ? " Modifications non enregistrées." : ""}
             </p>
-            <button
-              onClick={() => setOpen(true)}
-              className={cn(primaryPill, "gap-2")}
-            >
+            <button onClick={() => setOpen(true)} className={cn(primaryPill, "gap-2")}>
               <Maximize2 className="h-4 w-4" /> Ouvrir l'éditeur
             </button>
           </>
         )}
       </div>
 
-      {open && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-[#F1F3F6]" style={{ isolation: "isolate" }}>
-          <div className="sr-only" role="dialog" aria-modal="true" aria-label="Configuration du reçu PDF" />
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] bg-[#F1F3F6]" style={{ isolation: "isolate" }}>
+            <div
+              className="sr-only"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Configuration du reçu PDF"
+            />
 
-          {/* Floating top bar */}
-          <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-white/90 px-4 py-2 shadow-sm backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground">
-                {current.length} champ{current.length !== 1 ? "s" : ""}
-                {isAiMode ? " (IA)" : ""}
-                {dirty ? " · Modifié" : ""}
-              </span>
-              {!isAiMode && available.length > 0 && (
-                <select
-                  value=""
-                  onChange={(e) => { if (e.target.value) addField(e.target.value); e.target.value = ""; }}
-                  className={cn(ghostPill, "px-2 py-1 text-xs")}
-                >
-                  <option value="">+ Ajouter un champ</option>
-                  {available.map((p) => (
-                    <option key={p} value={p}>{'{'}{p}{'}'}</option>
-                  ))}
-                </select>
-              )}
-              {isAiMode && (
-                <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                  <Sparkles className="h-3 w-3" /> IA
+            {/* Floating top bar */}
+            <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-white/90 px-4 py-2 shadow-sm backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {current.length} champ{current.length !== 1 ? "s" : ""}
+                  {isAiMode ? " (IA)" : ""}
+                  {dirty ? " · Modifié" : ""}
                 </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {dirty && (
-                <>
-                  <button onClick={() => { setFields(null); setOpen(false); }} className={cn(ghostPill, "px-2 py-1 text-xs")}>Annuler</button>
-                  <button
-                    onClick={() => save.mutate(current)}
-                    disabled={save.isPending}
-                    className={cn(primaryPill, "px-2 py-1 text-xs disabled:opacity-50")}
+                {!isAiMode && available.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) addField(e.target.value);
+                      e.target.value = "";
+                    }}
+                    className={cn(ghostPill, "px-2 py-1 text-xs")}
                   >
-                    <Save className="h-3 w-3" /> {save.isPending ? "..." : "Enregistrer"}
-                  </button>
-                </>
-              )}
-              <button onClick={() => setOpen(false)} className={cn(iconButton, "h-7 w-7 p-0")} aria-label="Fermer"><X className="h-4 w-4" /></button>
+                    <option value="">+ Ajouter un champ</option>
+                    {available.map((p) => (
+                      <option key={p} value={p}>
+                        {"{"}
+                        {p}
+                        {"}"}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {isAiMode && (
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                    <Sparkles className="h-3 w-3" /> IA
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {dirty && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setFields(null);
+                        setOpen(false);
+                      }}
+                      className={cn(ghostPill, "px-2 py-1 text-xs")}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={() => save.mutate(current)}
+                      disabled={save.isPending}
+                      className={cn(primaryPill, "px-2 py-1 text-xs disabled:opacity-50")}
+                    >
+                      <Save className="h-3 w-3" /> {save.isPending ? "..." : "Enregistrer"}
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setOpen(false)}
+                  className={cn(iconButton, "h-7 w-7 p-0")}
+                  aria-label="Fermer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          </div>
 
-          {editor}
-        </div>,
-        document.body
-      )}
+            {editor}
+          </div>,
+          document.body,
+        )}
     </Section>
   );
 }

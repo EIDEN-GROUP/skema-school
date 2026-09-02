@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase-browser";
+import { buildMeta } from "@/lib/seo/metadata";
 import { Doodle, Motif } from "@/components/skema/bits";
 import ctaVibe from "@/assets/landing/cta-vibe.png";
 import stickerToque from "@/assets/login/sticker-toque.png";
@@ -11,16 +12,14 @@ import stickerCrayon from "@/assets/login/sticker-crayon.png";
 import stickerEtoile from "@/assets/login/sticker-etoile.png";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({
-    meta: [
-      { title: "Connexion · SKEMA" },
-      {
-        name: "description",
-        content:
-          "Connectez-vous à SKEMA pour gérer les familles, les frais de scolarité et le planning de votre établissement scolaire privé.",
-      },
-    ],
-  }),
+  head: () =>
+    buildMeta({
+      title: "Connexion · SKEMA",
+      description:
+        "Espace établissement : connectez-vous à SKEMA pour gérer les familles, les élèves, les frais de scolarité et le planning de votre école privée.",
+      path: "/login",
+      noindex: true,
+    }),
   component: Login,
 });
 
@@ -116,8 +115,14 @@ function Login() {
         className="ruled pointer-events-none absolute -left-28 top-16 hidden h-[540px] w-[420px] -rotate-3 border border-nuit/10 bg-white/70 lg:block"
       />
       {/* halos + illustration de marque */}
-      <div aria-hidden className="pointer-events-none absolute -right-40 top-1/4 hidden h-96 w-96 rounded-full bg-violet/15 blur-3xl lg:block" />
-      <div aria-hidden className="pointer-events-none absolute -right-24 bottom-10 hidden h-80 w-80 rounded-full bg-turquoise/15 blur-3xl lg:block" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-40 top-1/4 hidden h-96 w-96 rounded-full bg-violet/15 blur-3xl lg:block"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 bottom-10 hidden h-80 w-80 rounded-full bg-turquoise/15 blur-3xl lg:block"
+      />
       <img
         src={ctaVibe}
         alt=""
@@ -150,9 +155,13 @@ function Login() {
           />
 
           <a href="/" className="flex items-center gap-2">
-            <span className="text-[1.7rem] font-semibold leading-none tracking-[-0.05em] text-nuit">SK</span>
+            <span className="text-[1.7rem] font-semibold leading-none tracking-[-0.05em] text-nuit">
+              SK
+            </span>
             <Motif className="w-[22px]" />
-            <span className="text-[1.7rem] font-semibold leading-none tracking-[-0.05em] text-nuit">MA</span>
+            <span className="text-[1.7rem] font-semibold leading-none tracking-[-0.05em] text-nuit">
+              MA
+            </span>
           </a>
           <div className="mt-3 flex items-center gap-3">
             <Motif className="w-5" />

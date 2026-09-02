@@ -1,7 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, Check, Loader2 } from "lucide-react";
 import { submitDemoRequest } from "@/lib/contact-demo";
+import { buildMeta } from "@/lib/seo/metadata";
+import {
+  organizationSchema,
+  webApplicationSchema,
+  webSiteSchema,
+  faqSchema,
+  type FaqItem,
+} from "@/lib/seo/schema";
+import { track, errorType } from "@/lib/analytics";
 
 import photoClasse from "@/assets/photo-classe.jpg";
 import ctaVibe from "@/assets/landing/cta-vibe.png";
@@ -13,29 +22,61 @@ import stickerPrimaire from "@/assets/stickers/primaire.png";
 import stickerCollege from "@/assets/stickers/college.png";
 import stickerLycee from "@/assets/stickers/lycee.png";
 import { Doodle, Note, Sticker, Underline } from "@/components/skema/bits";
-import {
-  DashboardMock,
-  FamillesMock,
-  PaiementsMock,
-} from "@/components/skema/mocks";
+import { Logo } from "@/components/skema/logo";
+import { DashboardMock, FamillesMock, PaiementsMock } from "@/components/skema/mocks";
+
+const FAQ_ITEMS: FaqItem[] = [
+  {
+    question: "Qu'est-ce que SKEMA ?",
+    answer:
+      "SKEMA est un logiciel de gestion tout-en-un pour les écoles privées, les centres de soutien et les établissements scolaires. Il centralise les familles et les élèves, les frais de scolarité et les paiements, le planning et les rendez-vous, les rapports et la communication avec les parents, dans une seule interface.",
+  },
+  {
+    question: "Pour qui SKEMA est-il conçu ?",
+    answer:
+      "SKEMA est conçu pour les directions et équipes administratives d'écoles privées, de centres de soutien scolaire et d'établissements multi-niveaux, de la maternelle au lycée, principalement au Maroc et en France.",
+  },
+  {
+    question: "Comment SKEMA gère-t-il les familles et les élèves ?",
+    answer:
+      "SKEMA conserve les fiches familles et élèves complètes : coordonnées, scolarité, services souscrits (cantine, garderie, transport, activités), remise fratrie et suivi des paiements mensuels, avec recherche et filtres par niveau ou service.",
+  },
+  {
+    question: "Comment fonctionnent les paiements et les reçus ?",
+    answer:
+      "SKEMA suit les encaissements mois par mois, calcule automatiquement le statut de paiement (payé, en attente, retard, impayé), génère un reçu PDF personnalisé et envoie la confirmation aux parents par email et WhatsApp. Des relances de paiement peuvent être envoyées en quelques clics.",
+  },
+  {
+    question: "SKEMA inclut-il un planning et un calendrier ?",
+    answer:
+      "Oui. SKEMA propose un planning hebdomadaire sans conflit de salle ni de professeur, un calendrier avec jours fériés marocains, vacances scolaires et planifications, ainsi qu'un suivi des rendez-vous et des congés de l'équipe.",
+  },
+  {
+    question: "Comment SKEMA communique-t-il avec les parents ?",
+    answer:
+      "SKEMA dispose d'un centre de messages : envoi de messages individuels ou diffusés aux parents par WhatsApp ou email, notifications reçues des familles, et envoi automatique des reçus de paiement. Le contenu des messages n'est jamais partagé.",
+  },
+  {
+    question: "Comment demander une démo de SKEMA ?",
+    answer:
+      "Utilisez le formulaire de démonstration sur cette page (bouton « Réserver ma démo gratuite »). Vous choisissez votre formule et votre effectif, et l'équipe EIDEN GROUP vous contacte sous 2 h ouvrées pour organiser une démo guidée de 30 minutes.",
+  },
+  {
+    question: "Comment SKEMA protège-t-il les données sensibles ?",
+    answer:
+      "Les données des élèves et des familles restent privées et ne sont jamais vendues. Les informations sensibles (coordonnées, notes, messages) ne sont pas partagées et ne sont pas utilisées à des fins de marketing. Les données sont hébergées au Maroc et chiffrées.",
+  },
+];
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "SKEMA · Logiciel de gestion pour écoles privées" },
-      {
-        name: "description",
-        content:
-          "SKEMA centralise élèves, notes, absences, emplois du temps et facturation de votre établissement privé : maternelle, primaire, collège et lycée.",
-      },
-      { property: "og:title", content: "SKEMA, la solution tout-en-un pour votre établissement" },
-      {
-        property: "og:description",
-        content:
-          "Une plateforme unique et colorée pour piloter votre centre privé : vie scolaire, pédagogie, finance et communication.",
-      },
-    ],
-  }),
+  head: () =>
+    buildMeta({
+      title: "SKEMA · Logiciel de gestion pour écoles privées au Maroc",
+      description:
+        "SKEMA centralise élèves, notes, absences, emplois du temps et facturation de votre établissement privé : maternelle, primaire, collège et lycée. Démo gratuite.",
+      path: "/",
+      jsonLd: [organizationSchema(), webApplicationSchema(), webSiteSchema(), faqSchema(FAQ_ITEMS)],
+    }),
   component: Landing,
 });
 
@@ -84,7 +125,8 @@ const cycles = [
     alt: "Petite élève de maternelle en blouse corail tenant un gros crayon",
     fond: "bg-peche",
     accent: "text-corail",
-    phrase: "Les frais de garderie et de cantine s'ajoutent au forfait de la famille, sans second fichier.",
+    phrase:
+      "Les frais de garderie et de cantine s'ajoutent au forfait de la famille, sans second fichier.",
   },
   {
     nom: "Primaire",
@@ -92,7 +134,8 @@ const cycles = [
     alt: "Élève de primaire avec son cartable, la main levée",
     fond: "bg-menthe",
     accent: "text-turquoise",
-    phrase: "Une fratrie de trois enfants, une seule facture mensuelle et la remise appliquée d'office.",
+    phrase:
+      "Une fratrie de trois enfants, une seule facture mensuelle et la remise appliquée d'office.",
   },
   {
     nom: "Collège",
@@ -108,15 +151,40 @@ const cycles = [
     alt: "Lycéen en bomber bleu nuit, besace violette en bandoulière",
     fond: "bg-bleu-doux",
     accent: "text-nuit",
-    phrase: "Options, séances de soutien et examens blancs facturés à la séance, sans oubli en fin d'année.",
+    phrase:
+      "Options, séances de soutien et examens blancs facturés à la séance, sans oubli en fin d'année.",
   },
 ] as const;
 
 const etapes = [
-  { n: "1", t: "On vous écoute", d: "Un audit rapide de votre organisation actuelle.", tape: "tape-corail", tilt: "-rotate-2" },
-  { n: "2", t: "On importe tout", d: "Élèves, familles, classes et historique de notes.", tape: "tape-violet", tilt: "rotate-2" },
-  { n: "3", t: "On forme l'équipe", d: "Deux ateliers suffisent, l'interface est intuitive.", tape: "tape-turquoise", tilt: "-rotate-1" },
-  { n: "4", t: "Vous ouvrez l'année", d: "Chaque module s'active à votre rythme.", tape: "tape", tilt: "rotate-1" },
+  {
+    n: "1",
+    t: "On vous écoute",
+    d: "Un audit rapide de votre organisation actuelle.",
+    tape: "tape-corail",
+    tilt: "-rotate-2",
+  },
+  {
+    n: "2",
+    t: "On importe tout",
+    d: "Élèves, familles, classes et historique de notes.",
+    tape: "tape-violet",
+    tilt: "rotate-2",
+  },
+  {
+    n: "3",
+    t: "On forme l'équipe",
+    d: "Deux ateliers suffisent, l'interface est intuitive.",
+    tape: "tape-turquoise",
+    tilt: "-rotate-1",
+  },
+  {
+    n: "4",
+    t: "Vous ouvrez l'année",
+    d: "Chaque module s'active à votre rythme.",
+    tape: "tape",
+    tilt: "rotate-1",
+  },
 ];
 
 const tarifs = [
@@ -186,8 +254,14 @@ const priceFor = (plan: "essentiel" | "pro", students: Tier) => {
   return { m, y: m * 8 };
 };
 const PRICE = {
-  essentiel: Object.fromEntries(TIERS.map((n) => [n, priceFor("essentiel", n)])) as Record<Tier, { m: number; y: number }>,
-  pro: Object.fromEntries(TIERS.map((n) => [n, priceFor("pro", n)])) as Record<Tier, { m: number; y: number }>,
+  essentiel: Object.fromEntries(TIERS.map((n) => [n, priceFor("essentiel", n)])) as Record<
+    Tier,
+    { m: number; y: number }
+  >,
+  pro: Object.fromEntries(TIERS.map((n) => [n, priceFor("pro", n)])) as Record<
+    Tier,
+    { m: number; y: number }
+  >,
 };
 
 type PlanId = "essentiel" | "pro" | "reseau";
@@ -204,13 +278,16 @@ function describeSelection(s: Selection): { title: string; price: string; line: 
   return { title, price, line: `${title} · ${s.yearly ? "annuel" : "mensuel"} · ${price}` };
 }
 
-/** SKEMA logo — the official uncropped brand lockup. */
-function Logo({ className = "h-12" }: { className?: string }) {
-  return <img src="/skema-logo.png" alt="SKEMA, la solution tout-en-un pour votre établissement" className={`w-auto ${className}`} />;
-}
-
 /** Section kicker — the SKEMA logo "E" bars + a hand-written label. Used on every section. */
-function Kicker({ children, tone = "text-turquoise", center = false }: { children: ReactNode; tone?: string; center?: boolean }) {
+function Kicker({
+  children,
+  tone = "text-turquoise",
+  center = false,
+}: {
+  children: ReactNode;
+  tone?: string;
+  center?: boolean;
+}) {
   return (
     <p className={`flex items-center gap-3 ${center ? "justify-center" : ""}`}>
       <span aria-hidden className="inline-flex flex-col gap-[3px]">
@@ -252,11 +329,23 @@ const avis = [
 
 function DemoForm({ selection, onClear }: { selection: Selection | null; onClear: () => void }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ contactName: "", center: "", email: "", phone: "", preferredDate: "" });
+  const [form, setForm] = useState({
+    contactName: "",
+    center: "",
+    email: "",
+    phone: "",
+    preferredDate: "",
+  });
   const [state, setState] = useState<"idle" | "sending" | "done">("idle");
   const [error, setError] = useState("");
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const startedRef = useRef(false);
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!startedRef.current) {
+      startedRef.current = true;
+      track("demo_form_started", { source: "landing_demo_section" });
+    }
     setForm((f) => ({ ...f, [k]: e.target.value }));
+  };
   const picked = selection ? describeSelection(selection) : null;
 
   const field =
@@ -269,14 +358,23 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
     setState("sending");
     try {
       const res = await submitDemoRequest({ data: { ...form, plan: picked?.line ?? "" } });
-      if (res.ok) setState("done");
-      else {
+      if (res.ok) {
+        setState("done");
+        track("demo_request_submitted", {
+          plan: selection?.plan,
+          tier: selection?.tier,
+          billing_period: selection?.yearly ? "yearly" : "monthly",
+          locale: "fr",
+        });
+      } else {
         setError(res.error);
         setState("idle");
+        track("form_submission_failed", { form: "demo", error_type: "validation" });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Envoi impossible. Merci de réessayer.");
       setState("idle");
+      track("form_submission_failed", { form: "demo", error_type: errorType(err) });
     }
   };
 
@@ -288,7 +386,8 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
         </span>
         <p className="mt-4 text-lg font-bold text-white">Demande envoyée.</p>
         <p className="mt-1 text-sm text-white/70">
-          On revient vers vous sous 2 h pour caler le créneau. Un email de confirmation part vers {form.email}.
+          On revient vers vous sous 2 h pour caler le créneau. Un email de confirmation part vers{" "}
+          {form.email}.
         </p>
       </div>
     );
@@ -298,7 +397,9 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
     <form onSubmit={submit} className="mt-8 space-y-4">
       {picked && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-turquoise/25 bg-turquoise/10 px-4 py-3">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-turquoise">Formule choisie</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-turquoise">
+            Formule choisie
+          </span>
           <span className="text-sm font-bold text-white">{picked.title}</span>
           <span className="text-sm font-semibold text-turquoise">{picked.price}</span>
           <button
@@ -312,25 +413,76 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={label} htmlFor="df-name">Nom complet</label>
-          <input id="df-name" className={field} value={form.contactName} onChange={set("contactName")} placeholder="Amina El Fassi" autoComplete="name" required />
+          <label className={label} htmlFor="df-name">
+            Nom complet
+          </label>
+          <input
+            id="df-name"
+            className={field}
+            value={form.contactName}
+            onChange={set("contactName")}
+            placeholder="Amina El Fassi"
+            autoComplete="name"
+            required
+          />
         </div>
         <div>
-          <label className={label} htmlFor="df-center">Nom de l'établissement</label>
-          <input id="df-center" className={field} value={form.center} onChange={set("center")} placeholder="Groupe Scolaire Anfa" autoComplete="organization" required />
+          <label className={label} htmlFor="df-center">
+            Nom de l'établissement
+          </label>
+          <input
+            id="df-center"
+            className={field}
+            value={form.center}
+            onChange={set("center")}
+            placeholder="Groupe Scolaire Anfa"
+            autoComplete="organization"
+            required
+          />
         </div>
         <div>
-          <label className={label} htmlFor="df-email">Email de l'école</label>
-          <input id="df-email" type="email" className={field} value={form.email} onChange={set("email")} placeholder="direction@votre-ecole.ma" autoComplete="email" required />
+          <label className={label} htmlFor="df-email">
+            Email de l'école
+          </label>
+          <input
+            id="df-email"
+            type="email"
+            className={field}
+            value={form.email}
+            onChange={set("email")}
+            placeholder="direction@votre-ecole.ma"
+            autoComplete="email"
+            required
+          />
         </div>
         <div>
-          <label className={label} htmlFor="df-phone">Téléphone <span className="normal-case text-white/30">(facultatif)</span></label>
-          <input id="df-phone" type="tel" className={field} value={form.phone} onChange={set("phone")} placeholder="06 12 34 56 78" autoComplete="tel" />
+          <label className={label} htmlFor="df-phone">
+            Téléphone <span className="normal-case text-white/30">(facultatif)</span>
+          </label>
+          <input
+            id="df-phone"
+            type="tel"
+            className={field}
+            value={form.phone}
+            onChange={set("phone")}
+            placeholder="06 12 34 56 78"
+            autoComplete="tel"
+          />
         </div>
       </div>
       <div>
-        <label className={label} htmlFor="df-date">Date souhaitée pour la démo</label>
-        <input id="df-date" type="date" min={today} className={field} value={form.preferredDate} onChange={set("preferredDate")} required />
+        <label className={label} htmlFor="df-date">
+          Date souhaitée pour la démo
+        </label>
+        <input
+          id="df-date"
+          type="date"
+          min={today}
+          className={field}
+          value={form.preferredDate}
+          onChange={set("preferredDate")}
+          required
+        />
       </div>
 
       {error ? <p className="text-sm font-medium text-corail">{error}</p> : null}
@@ -356,7 +508,11 @@ function Testimonials() {
       <Kicker tone="text-turquoise">ce qu'en disent les directions</Kicker>
 
       <div className="paper relative mt-8 rounded-[32px] p-8 sm:p-12 md:p-14">
-        <Sticker name="trophy" tilt={10} className="absolute -right-5 -top-9 w-20 sm:-right-8 sm:-top-12 sm:w-24" />
+        <Sticker
+          name="trophy"
+          tilt={10}
+          className="absolute -right-5 -top-9 w-20 sm:-right-8 sm:-top-12 sm:w-24"
+        />
 
         <blockquote key={i} className="text-2xl font-medium leading-relaxed text-nuit md:text-3xl">
           « {a.quote} »
@@ -411,19 +567,28 @@ function PricingSection({
   const fmt = (n: number) => n.toLocaleString("fr-FR");
 
   const choose = (plan: PlanId) => {
+    track("pricing_plan_selected", {
+      plan,
+      tier,
+      billing_period: yearly ? "yearly" : "monthly",
+    });
+    track("demo_cta_clicked", { page_name: "landing", cta_location: "pricing_card" });
     onSelect({ plan, tier, yearly });
     if (typeof document !== "undefined")
       document.getElementById("demo")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const seg =
-    "rounded-full px-3.5 py-1.5 transition-colors sm:px-4";
+  const seg = "rounded-full px-3.5 py-1.5 transition-colors sm:px-4";
   const segOn = "bg-white text-nuit shadow-sm";
   const segOff = "text-nuit/50 hover:text-nuit";
 
   return (
     <section id="tarifs" className="relative mx-auto max-w-7xl px-6 py-20">
-      <Sticker name="backpack" tilt={-8} className="pointer-events-none absolute -left-2 top-4 hidden w-16 opacity-60 lg:block" />
+      <Sticker
+        name="backpack"
+        tilt={-8}
+        className="pointer-events-none absolute -left-2 top-4 hidden w-16 opacity-60 lg:block"
+      />
       <div className="mb-8 max-w-xl">
         <Kicker tone="text-turquoise">un tarif clair, pas de surprise</Kicker>
         <h2 className="mt-3 text-4xl font-bold tracking-tight text-nuit">
@@ -437,27 +602,56 @@ function PricingSection({
       {/* Filtres : périodicité + effectif */}
       <div className="mb-12 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:gap-8">
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-nuit/40">Périodicité</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-nuit/40">
+            Périodicité
+          </p>
           <div className="inline-flex items-center gap-1 rounded-full bg-nuit/5 p-1 text-sm font-semibold">
-            <button type="button" onClick={() => setYearly(false)} className={`${seg} ${!yearly ? segOn : segOff}`}>
+            <button
+              type="button"
+              onClick={() => {
+                setYearly(false);
+                track("pricing_billing_selected", {
+                  billing_period: "monthly",
+                  plan: selected?.plan,
+                  tier: selected?.tier,
+                });
+              }}
+              className={`${seg} ${!yearly ? segOn : segOff}`}
+            >
               Mensuel
             </button>
             <button
               type="button"
-              onClick={() => setYearly(true)}
+              onClick={() => {
+                setYearly(true);
+                track("pricing_billing_selected", {
+                  billing_period: "yearly",
+                  plan: selected?.plan,
+                  tier: selected?.tier,
+                });
+              }}
               className={`flex items-center gap-2 ${seg} ${yearly ? segOn : segOff}`}
             >
               Annuel
-              <span className="rounded-full bg-turquoise/20 px-1.5 py-0.5 text-[10px] font-bold text-turquoise">−{MONTHS_OFF} MOIS</span>
+              <span className="rounded-full bg-turquoise/20 px-1.5 py-0.5 text-[10px] font-bold text-turquoise">
+                −{MONTHS_OFF} MOIS
+              </span>
             </button>
           </div>
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-nuit/40">Effectif de l&apos;établissement</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-nuit/40">
+            Effectif de l&apos;établissement
+          </p>
           <div className="inline-flex items-center gap-1 rounded-full bg-nuit/5 p-1 text-sm font-semibold">
             {TIERS.map((n) => (
-              <button key={n} type="button" onClick={() => setTier(n)} className={`${seg} ${tier === n ? segOn : segOff}`}>
+              <button
+                key={n}
+                type="button"
+                onClick={() => setTier(n)}
+                className={`${seg} ${tier === n ? segOn : segOff}`}
+              >
                 Jusqu&apos;à {n}
               </button>
             ))}
@@ -470,10 +664,15 @@ function PricingSection({
           const custom = t.id === "reseau";
           const cell = custom ? null : PRICE[t.id as "essentiel" | "pro"][tier];
           const amount = custom ? "sur mesure" : `${fmt(yearly ? cell!.y : cell!.m)} MAD`;
-          const isPicked = selected?.plan === t.id && selected.tier === tier && selected.yearly === yearly;
+          const isPicked =
+            selected?.plan === t.id && selected.tier === tier && selected.yearly === yearly;
           return (
             <div key={t.nom} className="relative">
-              <Note tapeTone={t.tape} variant="plain" className={`${t.tilt} h-full ${isPicked ? "ring-2 ring-turquoise ring-offset-2" : ""}`}>
+              <Note
+                tapeTone={t.tape}
+                variant="plain"
+                className={`${t.tilt} h-full ${isPicked ? "ring-2 ring-turquoise ring-offset-2" : ""}`}
+              >
                 {isPicked ? (
                   <span className="absolute -top-3 left-6 rounded-full bg-turquoise px-3 py-1 text-[12px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(23,179,166,0.8)]">
                     Sélectionnée
@@ -495,7 +694,9 @@ function PricingSection({
                 <p className="mt-5 flex items-baseline gap-1.5">
                   <span className="text-3xl font-bold tracking-tight text-nuit">{amount}</span>
                   {!custom && (
-                    <span className="text-sm font-semibold text-nuit/50">{yearly ? "/an HT" : "/mois HT"}</span>
+                    <span className="text-sm font-semibold text-nuit/50">
+                      {yearly ? "/an HT" : "/mois HT"}
+                    </span>
                   )}
                 </p>
                 <p className="mt-1 text-xs text-nuit/50">
@@ -520,7 +721,11 @@ function PricingSection({
                     t.tag ? "bg-violet text-white" : "bg-nuit text-white"
                   }`}
                 >
-                  {custom ? "Parler à un expert" : isPicked ? "Formule choisie" : "Choisir cette formule"}
+                  {custom
+                    ? "Parler à un expert"
+                    : isPicked
+                      ? "Formule choisie"
+                      : "Choisir cette formule"}
                 </button>
               </Note>
             </div>
@@ -533,6 +738,26 @@ function PricingSection({
 
 function Landing() {
   const [selection, setSelection] = useState<Selection | null>(null);
+  const pricingTracked = useRef(false);
+
+  useEffect(() => {
+    if (pricingTracked.current) return;
+    const el = document.getElementById("tarifs");
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting && !pricingTracked.current) {
+          pricingTracked.current = true;
+          track("pricing_viewed", { source: "landing_scroll" });
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background font-sans text-foreground">
       <div className="dots pointer-events-none fixed inset-0 -z-10" />
@@ -542,14 +767,66 @@ function Landing() {
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
           <Logo className="h-12" />
           <div className="hidden items-center gap-8 text-sm font-medium text-nuit/65 md:flex">
-            <a href="#app" className="hover:text-violet">L'application</a>
-            <a href="#modules" className="hover:text-violet">Modules</a>
-            <a href="#niveaux" className="hover:text-violet">Niveaux</a>
-            <a href="#temoignage" className="hover:text-violet">Avis</a>
-            <a href="#tarifs" className="hover:text-violet">Tarifs</a>
+            <a
+              href="#app"
+              onClick={() =>
+                track("internal_link_clicked", { page_name: "landing", target: "#app" })
+              }
+              className="hover:text-violet"
+            >
+              L'application
+            </a>
+            <a
+              href="#modules"
+              onClick={() =>
+                track("internal_link_clicked", { page_name: "landing", target: "#modules" })
+              }
+              className="hover:text-violet"
+            >
+              Modules
+            </a>
+            <a
+              href="#niveaux"
+              onClick={() =>
+                track("internal_link_clicked", { page_name: "landing", target: "#niveaux" })
+              }
+              className="hover:text-violet"
+            >
+              Niveaux
+            </a>
+            <a
+              href="#temoignage"
+              onClick={() =>
+                track("internal_link_clicked", { page_name: "landing", target: "#temoignage" })
+              }
+              className="hover:text-violet"
+            >
+              Avis
+            </a>
+            <a
+              href="#tarifs"
+              onClick={() =>
+                track("internal_link_clicked", { page_name: "landing", target: "#tarifs" })
+              }
+              className="hover:text-violet"
+            >
+              Tarifs
+            </a>
+            <a
+              href="#faq"
+              onClick={() =>
+                track("internal_link_clicked", { page_name: "landing", target: "#faq" })
+              }
+              className="hover:text-violet"
+            >
+              FAQ
+            </a>
           </div>
           <a
             href="#demo"
+            onClick={() =>
+              track("demo_cta_clicked", { page_name: "landing", cta_location: "navbar" })
+            }
             className="rounded-full bg-corail px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_10px_24px_-10px_rgba(255,102,107,0.9)] transition-transform hover:scale-105"
           >
             Demander une démo
@@ -579,6 +856,9 @@ function Landing() {
           <div className="mt-9 flex flex-wrap items-center gap-5">
             <a
               href="#demo"
+              onClick={() =>
+                track("demo_cta_clicked", { page_name: "landing", cta_location: "hero" })
+              }
               className="rounded-[20px] bg-nuit px-8 py-4 text-base font-bold text-primary-foreground shadow-[0_22px_44px_-20px_rgba(0,27,61,0.8)] transition-transform hover:-translate-y-0.5"
             >
               Explorer la plateforme
@@ -609,7 +889,9 @@ function Landing() {
                 height={1280}
                 className="h-40 w-full rounded-[10px] object-cover"
               />
-              <p className="font-hand mt-1.5 text-center text-lg text-nuit/70">la vraie vie de classe</p>
+              <p className="font-hand mt-1.5 text-center text-lg text-nuit/70">
+                la vraie vie de classe
+              </p>
             </div>
             <span className="absolute -top-3 left-6 h-6 w-20 -rotate-6 bg-turquoise/45 ring-1 ring-inset ring-white/40" />
           </div>
@@ -627,9 +909,24 @@ function Landing() {
           </div>
           <div className="grid gap-10 md:grid-cols-3">
             {[
-              { el: <DashboardMock />, tilt: "-rotate-2", label: "Tableau de bord", sticker: "star" as const },
-              { el: <FamillesMock />, tilt: "rotate-1", label: "Familles", sticker: "cap" as const },
-              { el: <PaiementsMock />, tilt: "-rotate-1", label: "Paiements", sticker: "invoice" as const },
+              {
+                el: <DashboardMock />,
+                tilt: "-rotate-2",
+                label: "Tableau de bord",
+                sticker: "star" as const,
+              },
+              {
+                el: <FamillesMock />,
+                tilt: "rotate-1",
+                label: "Familles",
+                sticker: "cap" as const,
+              },
+              {
+                el: <PaiementsMock />,
+                tilt: "-rotate-1",
+                label: "Paiements",
+                sticker: "invoice" as const,
+              },
             ].map((card) => (
               <div key={card.label} className="relative">
                 <div className={`${card.tilt} transition-transform duration-500 hover:rotate-0`}>
@@ -681,7 +978,10 @@ function Landing() {
         </h2>
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {cycles.map((c) => (
-            <article key={c.nom} className={`relative rounded-[26px] ${c.fond} p-6 pt-6 ring-1 ring-nuit/6`}>
+            <article
+              key={c.nom}
+              className={`relative rounded-[26px] ${c.fond} p-6 pt-6 ring-1 ring-nuit/6`}
+            >
               <img
                 src={c.sticker}
                 alt={c.alt}
@@ -701,7 +1001,9 @@ function Landing() {
       <section id="demarrage" className="relative bg-bleu-doux/60 py-20">
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-16 text-center">
-            <Kicker tone="text-violet" center>4 étapes, zéro stress</Kicker>
+            <Kicker tone="text-violet" center>
+              4 étapes, zéro stress
+            </Kicker>
             <h2 className="mt-3 text-4xl font-bold tracking-tight text-nuit">
               Votre passage à SKEMA
             </h2>
@@ -729,13 +1031,58 @@ function Landing() {
 
       <PricingSection selected={selection} onSelect={setSelection} />
 
+      {/* FAQ — questions fréquentes */}
+      <section id="faq" className="mx-auto max-w-4xl px-6 py-20">
+        <Kicker tone="text-violet" center>
+          Des questions ?
+        </Kicker>
+        <h2 className="mt-3 text-center text-4xl font-bold tracking-tight text-nuit">
+          Questions fréquentes sur SKEMA
+        </h2>
+        <div className="mt-10 space-y-4">
+          {FAQ_ITEMS.map((item, i) => (
+            <details
+              key={i}
+              className="group rounded-[22px] border border-nuit/8 bg-papier transition-shadow hover:shadow-sm"
+              onToggle={(e) => {
+                if ((e.currentTarget as HTMLDetailsElement).open) {
+                  track("faq_expanded", { question_index: i, page_name: "landing" });
+                }
+              }}
+            >
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-5 text-left text-base font-semibold text-nuit transition-colors hover:text-violet md:text-lg">
+                {item.question}
+                <span
+                  className="shrink-0 text-2xl text-nuit/40 transition-transform group-open:rotate-45"
+                  aria-hidden
+                >
+                  +
+                </span>
+              </summary>
+              <div className="border-t border-nuit/8 px-6 pb-6 pt-4">
+                <p className="text-sm leading-relaxed text-nuit/70">{item.answer}</p>
+              </div>
+            </details>
+          ))}
+        </div>
+      </section>
+
       {/* CTA — la conversion */}
       <section id="demo" className="mx-auto max-w-6xl px-6 pb-24 pt-4">
         <div className="relative overflow-hidden rounded-[40px] bg-nuit text-primary-foreground">
           {/* halos de couleur */}
-          <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-violet/40 blur-3xl" />
-          <div aria-hidden className="pointer-events-none absolute -bottom-28 right-1/3 h-80 w-80 rounded-full bg-turquoise/30 blur-3xl" />
-          <div aria-hidden className="pointer-events-none absolute -right-24 top-1/4 h-72 w-72 rounded-full bg-corail/20 blur-3xl" />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-violet/40 blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-28 right-1/3 h-80 w-80 rounded-full bg-turquoise/30 blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-24 top-1/4 h-72 w-72 rounded-full bg-corail/20 blur-3xl"
+          />
 
           <div className="relative grid gap-10 px-7 py-14 sm:px-12 md:py-16 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-12">
             {/* Texte + formulaire */}
@@ -745,17 +1092,28 @@ function Landing() {
                 Voyez <span className="text-turquoise">votre</span> école dans SKEMA.
               </h2>
               <p className="mt-4 max-w-md text-base leading-relaxed text-white/70">
-                Une démo guidée de 30 minutes. On importe un échantillon de vos données
-                pendant l'appel : vous repartez avec votre tableau de bord déjà rempli.
+                Une démo guidée de 30 minutes. On importe un échantillon de vos données pendant
+                l'appel : vous repartez avec votre tableau de bord déjà rempli.
               </p>
 
               <DemoForm selection={selection} onClear={() => setSelection(null)} />
 
               <ul className="mt-7 grid gap-x-6 gap-y-2 text-sm text-white/55 sm:grid-cols-2">
-                <li className="flex items-center gap-2"><span className="size-1.5 shrink-0 rounded-full bg-turquoise" /> Sans engagement</li>
-                <li className="flex items-center gap-2"><span className="size-1.5 shrink-0 rounded-full bg-violet" /> Mise en route en 48 h</li>
-                <li className="flex items-center gap-2"><span className="size-1.5 shrink-0 rounded-full bg-ocre" /> Onboarding &amp; formation inclus</li>
-                <li className="flex items-center gap-2"><span className="size-1.5 shrink-0 rounded-full bg-corail" /> Vos données restent au Maroc</li>
+                <li className="flex items-center gap-2">
+                  <span className="size-1.5 shrink-0 rounded-full bg-turquoise" /> Sans engagement
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="size-1.5 shrink-0 rounded-full bg-violet" /> Mise en route en 48
+                  h
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="size-1.5 shrink-0 rounded-full bg-ocre" /> Onboarding &amp;
+                  formation inclus
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="size-1.5 shrink-0 rounded-full bg-corail" /> Vos données restent
+                  au Maroc
+                </li>
               </ul>
             </div>
 
@@ -777,9 +1135,26 @@ function Landing() {
       <footer className="border-t border-nuit/8 bg-papier py-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 text-center md:flex-row md:justify-between md:text-left">
           <Logo className="h-14" />
-          <p className="text-xs text-muted-foreground">
-            © 2026 SKEMA · La solution tout-en-un pour votre établissement.
-          </p>
+          <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground md:items-end">
+            <p>© 2026 SKEMA · EIDEN GROUP · La solution tout-en-un pour votre établissement.</p>
+            <nav
+              className="flex flex-wrap items-center justify-center gap-4"
+              aria-label="Liens du site"
+            >
+              <Link to="/" className="hover:text-nuit hover:underline">
+                Accueil
+              </Link>
+              <Link to="/privacy" className="hover:text-nuit hover:underline">
+                Confidentialité
+              </Link>
+              <a href="/login" className="hover:text-nuit hover:underline">
+                Connexion
+              </a>
+              <a href="/#demo" className="hover:text-nuit hover:underline">
+                Demander une démo
+              </a>
+            </nav>
+          </div>
         </div>
       </footer>
     </div>

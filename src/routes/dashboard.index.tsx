@@ -1,5 +1,6 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDashboardStats } from "@/lib/server-dashboard";
 import { listPayments } from "@/lib/server-payments";
@@ -12,6 +13,8 @@ import {
   type InvoicePoint,
 } from "@/lib/server-invoices";
 import { toast } from "sonner";
+import { track, trackFirstOnce } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 import {
   Users,
   CreditCard,
@@ -28,21 +31,8 @@ import {
 } from "lucide-react";
 import { AddClientDialog, emptyWizard, type WizardData } from "@/components/add-client-wizard";
 import { Sticker } from "@/components/skema/bits";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -72,7 +62,14 @@ import {
 } from "@/lib/dash-ui";
 
 export const Route = createFileRoute("/dashboard/")({
-  head: () => ({ meta: [{ title: "Tableau de bord · SKEMA" }] }),
+  head: () =>
+    buildMeta({
+      title: "Tableau de bord · SKEMA",
+      description:
+        "Vue d'ensemble du tableau de bord de l'école : indicateurs financiers, familles et rappels de paiement.",
+      path: "/dashboard",
+      noindex: true,
+    }),
   component: CrmDash,
 });
 
@@ -82,7 +79,20 @@ export const Route = createFileRoute("/dashboard/")({
 type Grain = "mensuel" | "trimestriel" | "annuel";
 
 const PENDING_COLOR = "#FFB347";
-const MONTH_NAMES = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+const MONTH_NAMES = [
+  "Jan",
+  "Fév",
+  "Mar",
+  "Avr",
+  "Mai",
+  "Juin",
+  "Juil",
+  "Août",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Déc",
+];
 type SeriesKey = "encaisse" | "en_attente" | "impaye" | "retard" | "attente";
 
 const SERIES_META: Array<{ key: SeriesKey; label: string; color: string }> = [
@@ -115,11 +125,18 @@ const daysOverdue = (paymentDay?: number): number => {
   const due = new Date(now.getFullYear(), now.getMonth(), day);
   const diff = Math.floor((now.getTime() - due.getTime()) / 86_400_000);
   return Math.max(0, diff);
-}
+};
 
 function CrmDash() {
   const { t } = useDashboardI18n();
   const isMobile = useIsMobile();
+  const dashViewedRef = useRef(false);
+  useEffect(() => {
+    if (dashViewedRef.current) return;
+    dashViewedRef.current = true;
+    track("dashboard_viewed", { role: "admin" });
+    trackFirstOnce("dashboard_viewed", "first_dashboard_view", { role: "admin" });
+  }, []);
   const [addClientOpen, setAddClientOpen] = useState(false);
   const [wizard, setWizard] = useState<WizardData>(emptyWizard);
   const updateWizard = (patch: Partial<WizardData>) => setWizard((prev) => ({ ...prev, ...patch }));
@@ -163,12 +180,33 @@ function CrmDash() {
     queryFn: () => getInvoiceAnalytics({ data: { grain: "mensuel", year } }),
   });
 
-  const dbPayments = payments as unknown as Array<{ id: string; amount: number; date: string; mode: string; period: string; invoice_sent: boolean; clients: { parent_name: string; child_name: string; phone: string; email: string; level: string; monthly_fee: number; payment_status: string; subscribed_services: string[] } }>;
+  const dbPayments = payments as unknown as Array<{
+    id: string;
+    amount: number;
+    date: string;
+    mode: string;
+    period: string;
+    invoice_sent: boolean;
+    clients: {
+      parent_name: string;
+      child_name: string;
+      phone: string;
+      email: string;
+      level: string;
+      monthly_fee: number;
+      payment_status: string;
+      subscribed_services: string[];
+    };
+  }>;
   // "Impayé" is what the bucket still owes: the unpaid amount whether or not
   // the due date has passed. Derived here rather than in the ledger query   it is
   // exactly impayé + retard, which getInvoiceAnalytics already returns.
   const chartData = useMemo(
-    () => (barData as InvoicePoint[]).map((p) => ({ ...p, attente: p.en_attente + p.impaye + p.retard })),
+    () =>
+      (barData as InvoicePoint[]).map((p) => ({
+        ...p,
+        attente: p.en_attente + p.impaye + p.retard,
+      })),
     [barData],
   );
 
@@ -203,16 +241,19 @@ function CrmDash() {
       .sort((a, b) => b.days - a.days || b.amount - a.amount);
   }, [clients]);
 
-  const pendingTotal = useMemo(
-    () => pendingDues.reduce((s, d) => s + d.amount, 0),
-    [pendingDues],
-  );
+  const pendingTotal = useMemo(() => pendingDues.reduce((s, d) => s + d.amount, 0), [pendingDues]);
 
   // "Total à recouvrer" is just the three status rows added up. Those rows sum
   // each family's live debt by payment_status (getOutstanding), so the count
   // matches the KPI cards above and the MAD matches the count.
-  const attenteTotal = (outstanding?.enAttenteTotal ?? 0) + (outstanding?.impayeTotal ?? 0) + (outstanding?.retardTotal ?? 0);
-  const attenteCount = (outstanding?.enAttenteCount ?? 0) + (outstanding?.impayeCount ?? 0) + (outstanding?.retardCount ?? 0);
+  const attenteTotal =
+    (outstanding?.enAttenteTotal ?? 0) +
+    (outstanding?.impayeTotal ?? 0) +
+    (outstanding?.retardTotal ?? 0);
+  const attenteCount =
+    (outstanding?.enAttenteCount ?? 0) +
+    (outstanding?.impayeCount ?? 0) +
+    (outstanding?.retardCount ?? 0);
 
   // Relance rapide: pick who gets the reminder instead of blasting every overdue
   const relanceCandidates = useMemo(
@@ -246,6 +287,13 @@ function CrmDash() {
       return { ok: true, success, failed: relanceIds.length - success, errors };
     },
     onSuccess: (res: any) => {
+      track("payment_reminder_sent", {
+        channel: "whatsapp",
+        message_type: "payment_reminder",
+        recipient_count: res.success + (res.failed || 0),
+        success_count: res.success,
+        failure_count: res.failed || 0,
+      });
       if (res.success === 0) {
         toast.error(res.errors?.[0] ?? "Aucun rappel envoyé");
       } else {
@@ -265,6 +313,12 @@ function CrmDash() {
     mutationFn: (clientId: string) =>
       sendClientMessage({ data: { clientId, content: "Rappel de paiement" } }),
     onSuccess: () => {
+      track("payment_reminder_sent", {
+        channel: "whatsapp",
+        message_type: "payment_reminder",
+        recipient_count: 1,
+        success_count: 1,
+      });
       toast.success("Rappel envoyé");
       queryClient.invalidateQueries({ queryKey: ["message-history"] });
     },
@@ -278,7 +332,8 @@ function CrmDash() {
       note: `Frais mensuels · ${p.clients?.child_name ?? ""}`,
       date: p.date || " ",
       amount: String(p.amount),
-      status: (p.clients?.payment_status ?? "en_attente") as "paye" | "en_attente" | "retard" | "impaye",
+      status: (p.clients?.payment_status ?? "en_attente") as
+        "paye" | "en_attente" | "retard" | "impaye",
     }));
   }, [dbPayments]);
 
@@ -353,7 +408,7 @@ function CrmDash() {
       search: { statut: "impaye" },
       extra: null as string | null,
     },
-] as const;
+  ] as const;
 
   const queryClient = useQueryClient();
 
@@ -380,7 +435,6 @@ function CrmDash() {
     },
   ];
 
-
   return (
     <div className="space-y-5 sm:space-y-6">
       <AddClientDialog
@@ -393,14 +447,20 @@ function CrmDash() {
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">{t.home.eyebrow}</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+            {t.home.eyebrow}
+          </p>
           <h1 className="font-hand mt-2 text-4xl leading-tight tracking-tight text-foreground md:text-[3rem]">
             <span className="font-semibold">{t.home.titleBold}</span>{" "}
             <span className="font-normal italic text-muted-foreground">{t.home.titleItalic}</span>
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t.home.subtitle}</p>
         </div>
-        <button type="button" onClick={() => setAddClientOpen(true)} className={cn(primaryPill, "w-full justify-center sm:w-auto sm:shrink-0")}>
+        <button
+          type="button"
+          onClick={() => setAddClientOpen(true)}
+          className={cn(primaryPill, "w-full justify-center sm:w-auto sm:shrink-0")}
+        >
           <Plus className="h-4 w-4" />
           {t.home.quickActions.addClient.title}
         </button>
@@ -414,10 +474,15 @@ function CrmDash() {
             to={card.to}
             search={card.search}
             aria-label={interpolate(t.home.cardOpenAria, { label: card.label, value: card.value })}
-            className={cn(softCardHover, "relative block overflow-hidden p-5 text-left text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2")}
+            className={cn(
+              softCardHover,
+              "relative block overflow-hidden p-5 text-left text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            )}
           >
             <div className="flex items-start justify-between gap-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{card.label}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                {card.label}
+              </p>
               <span
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl"
                 style={{ backgroundColor: card.tint, color: card.accent }}
@@ -425,7 +490,9 @@ function CrmDash() {
                 <card.icon className="h-4 w-4" />
               </span>
             </div>
-            <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground">{card.value}</p>
+            <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground">
+              {card.value}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">{card.sub}</p>
             {card.extra ? (
               <p
@@ -435,7 +502,10 @@ function CrmDash() {
                 {card.extra}
               </p>
             ) : null}
-            <span className="mt-3 block h-1 w-10 rounded-full" style={{ backgroundColor: card.accent }} />
+            <span
+              className="mt-3 block h-1 w-10 rounded-full"
+              style={{ backgroundColor: card.accent }}
+            />
           </Link>
         ))}
       </div>
@@ -449,12 +519,16 @@ function CrmDash() {
               <div>
                 <p className={eyebrowClass}>Vue d'ensemble</p>
                 <h2 className="mt-1 font-display text-2xl text-foreground">
-                  Statistique <span className="font-normal italic text-muted-foreground">générale</span>
+                  Statistique{" "}
+                  <span className="font-normal italic text-muted-foreground">générale</span>
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={grain} onValueChange={(v) => setGrain(v as Grain)}>
-                  <SelectTrigger className={cn(softSelectTrigger, "h-9 w-[7.5rem] rounded-xl")} aria-label="Granularité">
+                  <SelectTrigger
+                    className={cn(softSelectTrigger, "h-9 w-[7.5rem] rounded-xl")}
+                    aria-label="Granularité"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className={softSelectContent}>
@@ -466,7 +540,10 @@ function CrmDash() {
                 {/* Only monthly is scoped to a year; "3 mois" is the last 3 months from today and annual shows every year. */}
                 {grain === "mensuel" ? (
                   <Select value={year} onValueChange={setYear}>
-                    <SelectTrigger className={cn(softSelectTrigger, "h-9 w-[6.5rem] rounded-xl")} aria-label="Année">
+                    <SelectTrigger
+                      className={cn(softSelectTrigger, "h-9 w-[6.5rem] rounded-xl")}
+                      aria-label="Année"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className={softSelectContent}>
@@ -483,8 +560,16 @@ function CrmDash() {
 
             <div className="mt-5 h-64 w-full min-w-0 sm:mt-6 sm:h-[24rem]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(40,57,108,0.08)" vertical={false} />
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  barCategoryGap="28%"
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgba(40,57,108,0.08)"
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="bucket"
                     stroke="var(--muted-foreground)"
@@ -589,7 +674,10 @@ function CrmDash() {
                   className="block px-4 py-5 transition-colors hover:bg-[#FFF3E6]/40 sm:px-6"
                 >
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS_COLORS.en_attente }} />
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: STATUS_COLORS.en_attente }}
+                    />
                     En attente
                     <ArrowRight className="ml-auto h-3.5 w-3.5" />
                   </p>
@@ -609,7 +697,10 @@ function CrmDash() {
                   className="block px-4 py-5 transition-colors hover:bg-[#FF666B]/20 sm:px-6"
                 >
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS_COLORS.impaye }} />
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: STATUS_COLORS.impaye }}
+                    />
                     Impayé
                     <ArrowRight className="ml-auto h-3.5 w-3.5" />
                   </p>
@@ -629,7 +720,10 @@ function CrmDash() {
                   className="block px-4 py-5 transition-colors hover:bg-[#FFE3E0]/40 sm:px-6"
                 >
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATUS_COLORS.retard }} />
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: STATUS_COLORS.retard }}
+                    />
                     Retard
                     <ArrowRight className="ml-auto h-3.5 w-3.5" />
                   </p>
@@ -644,7 +738,10 @@ function CrmDash() {
 
               <li className="px-4 py-5 sm:px-6">
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: PENDING_COLOR }} />
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: PENDING_COLOR }}
+                  />
                   Total à recouvrer
                 </p>
                 <p className="mt-1.5 font-display text-2xl font-semibold tabular-nums text-foreground">
@@ -663,156 +760,180 @@ function CrmDash() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] lg:items-start">
         {/* Colonne principale : activité récente + créances en attente à relancer */}
         <div className="min-w-0 space-y-5">
-        {/* Derniers paiements (Activité récente) */}
-        <div className={cn(softCard, "p-4 sm:p-6")}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className={eyebrowClass}>Activité récente</p>
-              <h2 className="mt-1 font-display text-xl text-foreground">Derniers paiements</h2>
+          {/* Derniers paiements (Activité récente) */}
+          <div className={cn(softCard, "p-4 sm:p-6")}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className={eyebrowClass}>Activité récente</p>
+                <h2 className="mt-1 font-display text-xl text-foreground">Derniers paiements</h2>
+              </div>
+              <Link
+                to="/dashboard/paiements"
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15"
+              >
+                Voir tout <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-            <Link
-              to="/dashboard/paiements"
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15"
-            >
-              Voir tout <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <ul className="mt-4 divide-y divide-[#001B3D]/8">
-            {lastPayments.map((p) => (
-              <li key={p.who + p.note} className="flex items-center gap-3 py-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#001B3D]/8 text-xs font-bold text-[#001B3D]">
-                  {initials(p.who)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">{p.who}</p>
-                  <p className="truncate text-xs text-muted-foreground">{p.note}</p>
-                  <p className="mt-0.5 text-xs font-semibold tabular-nums text-foreground sm:hidden">
-                    {p.amount} MAD <span className="font-normal text-muted-foreground">· {p.date}</span>
-                  </p>
-                </div>
-                <div className="hidden shrink-0 text-right sm:block">
-                  <p className="text-sm font-semibold tabular-nums text-foreground">{p.amount} MAD</p>
-                  <p className="text-[11px] text-muted-foreground">{p.date}</p>
-                </div>
-                <span className={statusPill(p.status)}>
-                  {p.status === "paye" ? "Payé" : p.status === "retard" ? "Retard" : p.status === "en_attente" ? "En attente" : "Impayé"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Paiements en attente   file de relance : uniquement impayés et retards. */}
-        <div className={cn(softCard, "relative overflow-hidden")}>
-          <Sticker name="warningTriangle" tilt={8} className="pointer-events-none absolute -right-3 -top-3 w-16 opacity-90" />
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#001B3D]/10 px-4 py-4 sm:px-6">
-            <div>
-              <p className={eyebrowClass}>Créances</p>
-              <h2 className="mt-1 font-display text-xl text-foreground">Paiements en attente</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">Familles impayées ou en retard à relancer</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-[#FFF3E6] px-3 py-1 text-xs font-semibold text-[#B5760E]">
-                {pendingDues.length} famille{pendingDues.length > 1 ? "s" : ""}
-              </span>
-              {pendingTotal > 0 ? (
-                <span className="rounded-full bg-[#001B3D]/8 px-3 py-1 text-xs font-semibold tabular-nums text-[#001B3D]">
-                  {pendingTotal.toLocaleString("fr-FR")} MAD
-                </span>
-              ) : null}
-            </div>
-          </div>
-          {pendingDues.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-              Aucun paiement en attente. Tout est à jour.
-            </p>
-          ) : (
-            <ul className="divide-y divide-[#001B3D]/8">
-              {(pendingExpanded ? pendingDues : pendingDues.slice(0, 6)).map((d) => (
-                <li key={d.id} className="px-4 py-3.5 sm:px-6">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#001B3D]/8 text-xs font-bold text-[#001B3D]">
-                      {initials(d.name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-foreground">{d.name}</p>
-                        {d.status === "retard" && d.days > 0 ? (
-                          <span
-                            className={cn(
-                              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                              d.days > 14 ? "bg-[#FFE3E0] text-[#D93A41]" : "bg-[#FFF3E6] text-[#B5760E]",
-                            )}
-                          >
-                            {d.days}j de retard
-                          </span>
-                        ) : d.status === "en_attente" ? (
-                          <span className="shrink-0 rounded-full bg-[#FFF3E6] px-2 py-0.5 text-[10px] font-semibold text-[#B5760E]">
-En attente
-                          </span>
-                        ) : (
-                          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-Impayé
-                          </span>
-                        )}
-                      </div>
-                      <p className="truncate text-xs text-muted-foreground">{d.level || "Niveau non défini"}</p>
-                    </div>
-                    <p className="hidden shrink-0 text-right text-sm font-semibold tabular-nums text-foreground sm:block">
-                      {d.amount.toLocaleString("fr-FR")} MAD
+            <ul className="mt-4 divide-y divide-[#001B3D]/8">
+              {lastPayments.map((p) => (
+                <li key={p.who + p.note} className="flex items-center gap-3 py-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#001B3D]/8 text-xs font-bold text-[#001B3D]">
+                    {initials(p.who)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{p.who}</p>
+                    <p className="truncate text-xs text-muted-foreground">{p.note}</p>
+                    <p className="mt-0.5 text-xs font-semibold tabular-nums text-foreground sm:hidden">
+                      {p.amount} MAD{" "}
+                      <span className="font-normal text-muted-foreground">· {p.date}</span>
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => remindMutation.mutate(d.id)}
-                      disabled={remindMutation.isPending}
-                      className="hidden shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15 disabled:opacity-50 sm:inline-flex"
-                    >
-                      <Send className="h-3.5 w-3.5" /> Relancer
-                    </button>
                   </div>
-                  {/* Mobile : montant + relance sur leur propre ligne */}
-                  <div className="mt-2 flex items-center justify-between gap-2 pl-[3.25rem] sm:hidden">
+                  <div className="hidden shrink-0 text-right sm:block">
                     <p className="text-sm font-semibold tabular-nums text-foreground">
-                      {d.amount.toLocaleString("fr-FR")} MAD
+                      {p.amount} MAD
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => remindMutation.mutate(d.id)}
-                      disabled={remindMutation.isPending}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#001B3D]/15 px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15 disabled:opacity-50"
-                    >
-                      <Send className="h-3.5 w-3.5" /> Relancer
-                    </button>
+                    <p className="text-[11px] text-muted-foreground">{p.date}</p>
                   </div>
+                  <span className={statusPill(p.status)}>
+                    {p.status === "paye"
+                      ? "Payé"
+                      : p.status === "retard"
+                        ? "Retard"
+                        : p.status === "en_attente"
+                          ? "En attente"
+                          : "Impayé"}
+                  </span>
                 </li>
               ))}
-              {pendingDues.length > 6 ? (
-                <li className="px-4 py-3 sm:px-6">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPendingExpanded((v) => !v)}
-                      aria-expanded={pendingExpanded}
-                      className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15"
-                    >
-                      {pendingExpanded
-                        ? "Afficher moins"
-                        : `Voir les ${pendingDues.length} familles`}
-                      <ArrowDown className={cn("h-3.5 w-3.5 transition-transform", pendingExpanded && "rotate-180")} />
-                    </button>
-                    <Link
-                      to="/dashboard/familles"
-                      search={{ statut: "retard" }}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
-                    >
-                      Ouvrir la liste complète <ArrowUpRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </div>
-                </li>
-              ) : null}
             </ul>
-          )}
-        </div>
+          </div>
+
+          {/* Paiements en attente   file de relance : uniquement impayés et retards. */}
+          <div className={cn(softCard, "relative overflow-hidden")}>
+            <Sticker
+              name="warningTriangle"
+              tilt={8}
+              className="pointer-events-none absolute -right-3 -top-3 w-16 opacity-90"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#001B3D]/10 px-4 py-4 sm:px-6">
+              <div>
+                <p className={eyebrowClass}>Créances</p>
+                <h2 className="mt-1 font-display text-xl text-foreground">Paiements en attente</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Familles impayées ou en retard à relancer
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[#FFF3E6] px-3 py-1 text-xs font-semibold text-[#B5760E]">
+                  {pendingDues.length} famille{pendingDues.length > 1 ? "s" : ""}
+                </span>
+                {pendingTotal > 0 ? (
+                  <span className="rounded-full bg-[#001B3D]/8 px-3 py-1 text-xs font-semibold tabular-nums text-[#001B3D]">
+                    {pendingTotal.toLocaleString("fr-FR")} MAD
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            {pendingDues.length === 0 ? (
+              <p className="px-6 py-10 text-center text-sm text-muted-foreground">
+                Aucun paiement en attente. Tout est à jour.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[#001B3D]/8">
+                {(pendingExpanded ? pendingDues : pendingDues.slice(0, 6)).map((d) => (
+                  <li key={d.id} className="px-4 py-3.5 sm:px-6">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#001B3D]/8 text-xs font-bold text-[#001B3D]">
+                        {initials(d.name)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-semibold text-foreground">{d.name}</p>
+                          {d.status === "retard" && d.days > 0 ? (
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                d.days > 14
+                                  ? "bg-[#FFE3E0] text-[#D93A41]"
+                                  : "bg-[#FFF3E6] text-[#B5760E]",
+                              )}
+                            >
+                              {d.days}j de retard
+                            </span>
+                          ) : d.status === "en_attente" ? (
+                            <span className="shrink-0 rounded-full bg-[#FFF3E6] px-2 py-0.5 text-[10px] font-semibold text-[#B5760E]">
+                              En attente
+                            </span>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                              Impayé
+                            </span>
+                          )}
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {d.level || "Niveau non défini"}
+                        </p>
+                      </div>
+                      <p className="hidden shrink-0 text-right text-sm font-semibold tabular-nums text-foreground sm:block">
+                        {d.amount.toLocaleString("fr-FR")} MAD
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => remindMutation.mutate(d.id)}
+                        disabled={remindMutation.isPending}
+                        className="hidden shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15 disabled:opacity-50 sm:inline-flex"
+                      >
+                        <Send className="h-3.5 w-3.5" /> Relancer
+                      </button>
+                    </div>
+                    {/* Mobile : montant + relance sur leur propre ligne */}
+                    <div className="mt-2 flex items-center justify-between gap-2 pl-[3.25rem] sm:hidden">
+                      <p className="text-sm font-semibold tabular-nums text-foreground">
+                        {d.amount.toLocaleString("fr-FR")} MAD
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => remindMutation.mutate(d.id)}
+                        disabled={remindMutation.isPending}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#001B3D]/15 px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15 disabled:opacity-50"
+                      >
+                        <Send className="h-3.5 w-3.5" /> Relancer
+                      </button>
+                    </div>
+                  </li>
+                ))}
+                {pendingDues.length > 6 ? (
+                  <li className="px-4 py-3 sm:px-6">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPendingExpanded((v) => !v)}
+                        aria-expanded={pendingExpanded}
+                        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#001B3D] transition hover:bg-[#6C4DF6]/15"
+                      >
+                        {pendingExpanded
+                          ? "Afficher moins"
+                          : `Voir les ${pendingDues.length} familles`}
+                        <ArrowDown
+                          className={cn(
+                            "h-3.5 w-3.5 transition-transform",
+                            pendingExpanded && "rotate-180",
+                          )}
+                        />
+                      </button>
+                      <Link
+                        to="/dashboard/familles"
+                        search={{ statut: "retard" }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+                      >
+                        Ouvrir la liste complète <ArrowUpRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  </li>
+                ) : null}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Colonne latérale   relance rapide + actions rapides */}
@@ -820,10 +941,19 @@ Impayé
           {/* Relance rapide */}
           <div className={cn(softCard, "overflow-hidden")}>
             <div className="relative bg-[#001B3D] p-4 text-white sm:p-5">
-              <Sticker name="megaphone" tilt={-6} className="pointer-events-none absolute -right-2 -top-4 w-14" />
+              <Sticker
+                name="megaphone"
+                tilt={-6}
+                className="pointer-events-none absolute -right-2 -top-4 w-14"
+              />
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6C4DF6]">Relance rapide</p>
-                <Link to="/dashboard/familles" className="text-[11px] font-medium text-white/70 hover:text-white">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6C4DF6]">
+                  Relance rapide
+                </p>
+                <Link
+                  to="/dashboard/familles"
+                  className="text-[11px] font-medium text-white/70 hover:text-white"
+                >
                   Voir tout
                 </Link>
               </div>
@@ -833,11 +963,17 @@ Impayé
                   <button
                     type="button"
                     onClick={() => setRelanceExpanded((v) => !v)}
-                    title={relanceExpanded ? "Afficher moins" : `Afficher les ${relanceCandidates.length} clients`}
+                    title={
+                      relanceExpanded
+                        ? "Afficher moins"
+                        : `Afficher les ${relanceCandidates.length} clients`
+                    }
                     aria-expanded={relanceExpanded}
                     className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-dashed border-white/40 text-white/80 transition hover:border-white/80 hover:text-white"
                   >
-                    <Plus className={cn("h-4 w-4 transition-transform", relanceExpanded && "rotate-45")} />
+                    <Plus
+                      className={cn("h-4 w-4 transition-transform", relanceExpanded && "rotate-45")}
+                    />
                   </button>
                 )}
                 {relanceShown.map((c: any) => {
@@ -929,7 +1065,11 @@ Impayé
                 if (a.kind === "add-client") {
                   return (
                     <li key={a.title}>
-                      <button type="button" onClick={() => setAddClientOpen(true)} className={rowClass}>
+                      <button
+                        type="button"
+                        onClick={() => setAddClientOpen(true)}
+                        className={rowClass}
+                      >
                         {inner}
                       </button>
                     </li>

@@ -1,5 +1,6 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   addWeeks,
@@ -16,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { getDateFnsLocale, useDashboardI18n } from "@/lib/landing-i18n";
 import { softCard, iconButton } from "@/lib/dash-ui";
 import { listPlanifications } from "@/lib/server-planifications";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 type PlanTone = "violet" | "emerald" | "amber" | "zinc";
 
@@ -40,10 +43,7 @@ const toneBlock: Record<PlanTone, string> = {
 
 function earliestPlanMonday(plans: Array<{ date: string }>): Date {
   if (plans.length === 0) return startOfWeek(new Date(), { weekStartsOn: 1 });
-  const min = plans.reduce(
-    (acc, p) => (p.date < acc ? p.date : acc),
-    plans[0].date,
-  );
+  const min = plans.reduce((acc, p) => (p.date < acc ? p.date : acc), plans[0].date);
   return startOfWeek(parseISO(min), { weekStartsOn: 1 });
 }
 
@@ -71,11 +71,24 @@ function slotLabel(slotIndex: number): string {
 }
 
 export const Route = createFileRoute("/dashboard/planifications")({
-  head: () => ({ meta: [{ title: "Planifications   CRM" }] }),
+  head: () =>
+    buildMeta({
+      title: "Planifications · SKEMA",
+      description: "Planification des activités scolaires, semaine par semaine et mois par mois.",
+      path: "/dashboard/planifications",
+      noindex: true,
+    }),
   component: PlanificationsPage,
 });
 
-type PlanItem = { id: string; date: string; time: string; title: string; detail: string; tone: PlanTone };
+type PlanItem = {
+  id: string;
+  date: string;
+  time: string;
+  title: string;
+  detail: string;
+  tone: PlanTone;
+};
 
 function PlanificationsPage() {
   const { t, locale } = useDashboardI18n();
@@ -85,6 +98,13 @@ function PlanificationsPage() {
     queryFn: () => listPlanifications(),
   });
   const typedPlans = plans as unknown as PlanItem[];
+
+  const planningViewedRef = useRef(false);
+  useEffect(() => {
+    if (planningViewedRef.current) return;
+    planningViewedRef.current = true;
+    track("planning_viewed", {});
+  }, []);
 
   const [weekStart, setWeekStart] = useState(() => earliestPlanMonday(typedPlans));
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -106,38 +126,50 @@ function PlanificationsPage() {
 
   const plansInWeek = useMemo(
     () =>
-      typedPlans.filter((p) => {
-        const d = parseISO(p.date);
-        return d >= weekDays[0] && d <= weekDays[6];
-      }).sort((a, b) => {
-        const da = parseISO(a.date).getTime() - parseISO(b.date).getTime();
-        if (da !== 0) return da;
-        return a.time.localeCompare(b.time);
-      }),
+      typedPlans
+        .filter((p) => {
+          const d = parseISO(p.date);
+          return d >= weekDays[0] && d <= weekDays[6];
+        })
+        .sort((a, b) => {
+          const da = parseISO(a.date).getTime() - parseISO(b.date).getTime();
+          if (da !== 0) return da;
+          return a.time.localeCompare(b.time);
+        }),
     [weekDays, typedPlans],
   );
 
   const monthPlans = useMemo(() => {
     const ref = weekDays[0];
-    return typedPlans.filter((p) => isSameMonth(parseISO(p.date), ref)).sort((a, b) => {
-      const da = parseISO(a.date).getTime() - parseISO(b.date).getTime();
-      if (da !== 0) return da;
-      return a.time.localeCompare(b.time);
-    });
+    return typedPlans
+      .filter((p) => isSameMonth(parseISO(p.date), ref))
+      .sort((a, b) => {
+        const da = parseISO(a.date).getTime() - parseISO(b.date).getTime();
+        if (da !== 0) return da;
+        return a.time.localeCompare(b.time);
+      });
   }, [weekDays, typedPlans]);
 
-  const selectedPlan = selectedPlanId ? typedPlans.find((p) => p.id === selectedPlanId) ?? null : null;
+  const selectedPlan = selectedPlanId
+    ? (typedPlans.find((p) => p.id === selectedPlanId) ?? null)
+    : null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-10">
       <header className="space-y-4">
-        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">{t.planifications.eyebrow}</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+          {t.planifications.eyebrow}
+        </p>
         <div>
           <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-[2.35rem]">
             <span className="font-semibold">{t.planifications.titleBold}</span>{" "}
-            <span className="font-normal italic text-muted-foreground">{t.planifications.titleItalic}</span>
+            <span className="font-normal italic text-muted-foreground">
+              {t.planifications.titleItalic}
+            </span>
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t.planifications.subtitle}</p>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            {t.planifications.subtitle}
+          </p>
         </div>
       </header>
 
@@ -149,7 +181,9 @@ function PlanificationsPage() {
                 <CalendarDays className="h-4 w-4" strokeWidth={1.75} />
               </span>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t.planifications.weekView}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t.planifications.weekView}
+                </p>
                 <p className="text-sm font-medium capitalize text-foreground">{weekLabel}</p>
               </div>
             </div>
@@ -202,7 +236,12 @@ function PlanificationsPage() {
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         {format(day, "EEE", { locale: dateFnsLocale })}
                       </p>
-                      <p className={cn("mt-0.5 font-display text-sm font-semibold tabular-nums", isToday && "text-foreground")}>
+                      <p
+                        className={cn(
+                          "mt-0.5 font-display text-sm font-semibold tabular-nums",
+                          isToday && "text-foreground",
+                        )}
+                      >
                         {format(day, "d MMM", { locale: dateFnsLocale })}
                       </p>
                     </div>
@@ -240,7 +279,11 @@ function PlanificationsPage() {
                     >
                       <div className="pointer-events-none absolute inset-0">
                         {Array.from({ length: SLOT_COUNT }, (_, i) => (
-                          <div key={i} className="border-b border-border" style={{ height: SLOT_PX }} />
+                          <div
+                            key={i}
+                            className="border-b border-border"
+                            style={{ height: SLOT_PX }}
+                          />
                         ))}
                       </div>
                       <div className="relative" style={{ height: GRID_BODY_PX }}>
@@ -252,15 +295,23 @@ function PlanificationsPage() {
                             <button
                               key={plan.id}
                               type="button"
-                              onClick={() => setSelectedPlanId((id) => (id === plan.id ? null : plan.id))}
+                              onClick={() =>
+                                setSelectedPlanId((id) => (id === plan.id ? null : plan.id))
+                              }
                               className={cn(
                                 "absolute left-0.5 right-0.5 overflow-hidden border border-border/80 px-1.5 py-1 text-left transition",
                                 toneBlock[plan.tone],
                                 active && "ring-2 ring-primary ring-offset-1",
                               )}
-                              style={{ top: layout.top, height: layout.height, zIndex: active ? 2 : 1 }}
+                              style={{
+                                top: layout.top,
+                                height: layout.height,
+                                zIndex: active ? 2 : 1,
+                              }}
                             >
-                              <p className="text-[10px] font-semibold leading-tight sm:text-[11px]">{plan.title}</p>
+                              <p className="text-[10px] font-semibold leading-tight sm:text-[11px]">
+                                {plan.title}
+                              </p>
                               <p className="mt-0.5 flex items-center gap-0.5 text-[9px] font-medium tabular-nums opacity-90 sm:text-[10px]">
                                 <Clock className="h-2.5 w-2.5 shrink-0" aria-hidden />
                                 {plan.time}
@@ -279,15 +330,22 @@ function PlanificationsPage() {
 
         <aside className="flex flex-col gap-5">
           <div className={cn(softCard, "p-5 sm:p-6")}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.planifications.selectedSlot}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {t.planifications.selectedSlot}
+            </p>
             {selectedPlan ? (
               <>
                 <h2 className="mt-1 font-display text-lg text-foreground">{selectedPlan.title}</h2>
                 <p className="mt-2 flex items-center gap-1.5 text-xs font-medium tabular-nums text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" aria-hidden />
-                  {format(parseISO(selectedPlan.date), "EEEE d MMMM yyyy", { locale: dateFnsLocale })} · {selectedPlan.time}
+                  {format(parseISO(selectedPlan.date), "EEEE d MMMM yyyy", {
+                    locale: dateFnsLocale,
+                  })}{" "}
+                  · {selectedPlan.time}
                 </p>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{selectedPlan.detail}</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  {selectedPlan.detail}
+                </p>
               </>
             ) : (
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
@@ -297,8 +355,12 @@ function PlanificationsPage() {
           </div>
 
           <div className="rounded-[22px] border border-nuit/8 bg-gris-clair/60 p-5 sm:p-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.planifications.thisWeek}</p>
-            <h3 className="mt-1 font-display text-lg text-foreground">{t.planifications.allSlots}</h3>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {t.planifications.thisWeek}
+            </p>
+            <h3 className="mt-1 font-display text-lg text-foreground">
+              {t.planifications.allSlots}
+            </h3>
             <ul className="mt-4 max-h-[min(20rem,45vh)] space-y-2 overflow-y-auto pr-1">
               {plansInWeek.length === 0 ? (
                 <li className="text-xs text-muted-foreground">{t.planifications.noSlotsWeek}</li>
@@ -334,7 +396,9 @@ function PlanificationsPage() {
           </div>
 
           <div className={cn(softCard, "p-5 sm:p-6")}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.planifications.monthView}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {t.planifications.monthView}
+            </p>
             <ul className="mt-3 space-y-2 text-xs">
               {monthPlans.map((p) => (
                 <li

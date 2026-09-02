@@ -12,12 +12,7 @@ import {
   BookOpen,
   Check,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,11 +36,19 @@ import {
   eyebrowClass,
 } from "@/lib/dash-ui";
 import { createClient } from "@/lib/server-clients";
+import { track, trackFirstOnce } from "@/lib/analytics";
 import { getSettings, listLevels } from "@/lib/server-settings";
 import { StudentFields } from "@/components/student-fields";
 import { toast } from "sonner";
 
-export type ChildFormData = { name: string; dob: string; cycle: string; level: string; services: string[]; frais: string[] };
+export type ChildFormData = {
+  name: string;
+  dob: string;
+  cycle: string;
+  level: string;
+  services: string[];
+  frais: string[];
+};
 export type WizardData = {
   step: number;
   father_name: string;
@@ -63,7 +66,9 @@ export type WizardData = {
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id} className={labelClass}>{label}</Label>
+      <Label htmlFor={id} className={labelClass}>
+        {label}
+      </Label>
       {children}
     </div>
   );
@@ -76,9 +81,14 @@ export function emptyChild(): ChildFormData {
 export function emptyWizard(): WizardData {
   return {
     step: 0,
-    father_name: "", mother_name: "",
-    cin: "", cin_mother: "",
-    email: "", email2: "", phone: "", phone2: "",
+    father_name: "",
+    mother_name: "",
+    cin: "",
+    cin_mother: "",
+    email: "",
+    email2: "",
+    phone: "",
+    phone2: "",
     address: "",
     children: [emptyChild()],
   };
@@ -104,7 +114,8 @@ export function AddClientDialog({
   const queryClient = useQueryClient();
   const { data: levels } = useQuery({ queryKey: ["levels"], queryFn: listLevels });
   const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: getSettings });
-  const services: Array<{ name: string; price: number; enabled: boolean }> = settings?.services ?? [];
+  const services: Array<{ name: string; price: number; enabled: boolean }> =
+    settings?.services ?? [];
   const frais: Array<{ name: string; price: number; enabled: boolean }> = settings?.frais ?? [];
   const [busy, setBusy] = useState(false);
   // Applique (ou non) la réduction fratrie pour cette famille. Remplace l'ancien
@@ -132,19 +143,25 @@ export function AddClientDialog({
 
   const totalServices = useMemo(() => {
     return children.reduce((sum, c) => {
-      return sum + c.services.reduce((s, svcName) => {
-        const svc = services.find((x) => x.name === svcName);
-        return s + (svc?.price ?? 0);
-      }, 0);
+      return (
+        sum +
+        c.services.reduce((s, svcName) => {
+          const svc = services.find((x) => x.name === svcName);
+          return s + (svc?.price ?? 0);
+        }, 0)
+      );
     }, 0);
   }, [children, services]);
 
   const totalSelectedFrais = useMemo(() => {
     return children.reduce((sum, c) => {
-      return sum + (c.frais ?? []).reduce((s, name) => {
-        const f = frais.find((x) => x.name === name);
-        return s + (f?.price ?? 0);
-      }, 0);
+      return (
+        sum +
+        (c.frais ?? []).reduce((s, name) => {
+          const f = frais.find((x) => x.name === name);
+          return s + (f?.price ?? 0);
+        }, 0)
+      );
     }, 0);
   }, [children, frais]);
 
@@ -152,13 +169,20 @@ export function AddClientDialog({
 
   const canNext = useMemo(() => {
     switch (step) {
-      case 0: return wizard.father_name.trim() !== "" && wizard.mother_name.trim() !== "";
-      case 1: return true;
-      case 2: return true;
-      case 3: return true;
-      case 4: return children.length > 0 && children.every((c) => c.name.trim() !== "" && c.level !== "");
-      case 5: return true;
-      default: return false;
+      case 0:
+        return wizard.father_name.trim() !== "" && wizard.mother_name.trim() !== "";
+      case 1:
+        return true;
+      case 2:
+        return true;
+      case 3:
+        return true;
+      case 4:
+        return children.length > 0 && children.every((c) => c.name.trim() !== "" && c.level !== "");
+      case 5:
+        return true;
+      default:
+        return false;
     }
   }, [step, wizard, children]);
 
@@ -190,6 +214,13 @@ export function AddClientDialog({
         },
       });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      track("family_created", { source: "wizard", family_count: 1 });
+      trackFirstOnce("family_created", "first_family_created", { source: "wizard" });
+      if (children.length > 0) {
+        track("student_created", { family_count: children.length });
+        trackFirstOnce("student_created", "first_student_created");
+      }
+      track("onboarding_completed", { steps: totalSteps });
       toast.success("Famille créée");
       setWizard(emptyWizard());
       setReductionEnabled(false);
@@ -202,9 +233,14 @@ export function AddClientDialog({
   };
 
   const prevStep = () => updateWizard({ step: step - 1 });
-  const nextStep = () => updateWizard({ step: step + 1 });
-  const addChild = () => setWizard((prev) => ({ ...prev, children: [...prev.children, emptyChild()] }));
-  const removeChild = (i: number) => setWizard((prev) => ({ ...prev, children: prev.children.filter((_, idx) => idx !== i) }));
+  const nextStep = () => {
+    track("onboarding_step_completed", { step: STEP_LABELS[step] ?? String(step) });
+    updateWizard({ step: step + 1 });
+  };
+  const addChild = () =>
+    setWizard((prev) => ({ ...prev, children: [...prev.children, emptyChild()] }));
+  const removeChild = (i: number) =>
+    setWizard((prev) => ({ ...prev, children: prev.children.filter((_, idx) => idx !== i) }));
   const updChild = (i: number, patch: Partial<ChildFormData>) =>
     setWizard((prev) => ({
       ...prev,
@@ -330,7 +366,11 @@ export function AddClientDialog({
           />
         </div>
       ))}
-      <button type="button" onClick={addChild} className={cn(ghostPill, "w-full justify-center gap-2")}>
+      <button
+        type="button"
+        onClick={addChild}
+        className={cn(ghostPill, "w-full justify-center gap-2")}
+      >
         <Plus className="h-4 w-4" /> Ajouter un élève
       </button>
     </div>,
@@ -339,11 +379,15 @@ export function AddClientDialog({
       <div className={cn(softCard, "divide-y divide-[#001B3D]/8 p-4")}>
         <div className="pb-3">
           <p className={eyebrowClass}>Parents</p>
-          <p className="mt-1 text-sm text-foreground">{wizard.father_name} / {wizard.mother_name}</p>
+          <p className="mt-1 text-sm text-foreground">
+            {wizard.father_name} / {wizard.mother_name}
+          </p>
         </div>
         <div className="py-3">
           <p className={eyebrowClass}>Contact</p>
-          <p className="mt-1 text-sm text-foreground">{wizard.email || " "} · {wizard.phone || " "}</p>
+          <p className="mt-1 text-sm text-foreground">
+            {wizard.email || " "} · {wizard.phone || " "}
+          </p>
         </div>
         <div className="py-3">
           <p className={eyebrowClass}>Adresse</p>
@@ -354,7 +398,7 @@ export function AddClientDialog({
           <ul className="mt-1 space-y-1">
             {children.map((c, i) => (
               <li key={i} className="text-sm text-foreground">
-                {c.name}   {c.level || "Niveau non défini"}
+                {c.name} {c.level || "Niveau non défini"}
               </li>
             ))}
           </ul>
@@ -380,7 +424,7 @@ export function AddClientDialog({
                     const svc = services.find((s) => s.name === svcName);
                     return svc ? (
                       <p key={svcName} className="text-xs text-muted-foreground">
-                        ↳ {c.name}   {svc.name} : +{svc.price} MAD
+                        ↳ {c.name} {svc.name} : +{svc.price} MAD
                       </p>
                     ) : null;
                   })}
@@ -388,14 +432,13 @@ export function AddClientDialog({
                     const f = frais.find((x) => x.name === fName);
                     return f ? (
                       <p key={fName} className="text-xs text-muted-foreground">
-                        ↳ {c.name}   {f.name} : +{f.price} MAD
+                        ↳ {c.name} {f.name} : +{f.price} MAD
                       </p>
                     ) : null;
                   })}
                 </div>
               );
             })}
-
           </div>
 
           <div className="mt-3 border-t border-[#001B3D]/8 pt-3">
@@ -431,13 +474,22 @@ export function AddClientDialog({
   ];
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onOpenChange(false); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onOpenChange(false);
+      }}
+    >
       <DialogContent className={cn(dialogSurface, "w-[min(100vw-1.5rem,640px)] max-w-[640px]")}>
         <DialogDescription className="sr-only">{a.srDesc}</DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-[#6C4DF6]">
           <div className="shrink-0 border-b border-[#001B3D]/10 px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{a.eyebrow}</p>
-            <DialogTitle className="mt-2 text-left font-display text-xl font-semibold text-foreground">{a.title}</DialogTitle>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {a.eyebrow}
+            </p>
+            <DialogTitle className="mt-2 text-left font-display text-xl font-semibold text-foreground">
+              {a.title}
+            </DialogTitle>
             <div className="mt-3 flex items-center gap-2">
               {Array.from({ length: totalSteps }).map((_, i) => (
                 <div
@@ -450,12 +502,10 @@ export function AddClientDialog({
               ))}
             </div>
             <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Étape {step + 1} / {totalSteps}   {STEP_LABELS[step]}
+              Étape {step + 1} / {totalSteps} {STEP_LABELS[step]}
             </p>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto scroll-touch px-6 py-5">
-            {steps[step]}
-          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto scroll-touch px-6 py-5">{steps[step]}</div>
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#001B3D]/10 px-6 py-4">
             <div>
               {step > 0 ? (
@@ -465,7 +515,10 @@ export function AddClientDialog({
               ) : (
                 <button
                   type="button"
-                  onClick={() => { setWizard(emptyWizard()); onOpenChange(false); }}
+                  onClick={() => {
+                    setWizard(emptyWizard());
+                    onOpenChange(false);
+                  }}
                   className="rounded-full border border-[#001B3D]/15 bg-card px-5 py-2 text-sm font-medium text-foreground hover:bg-muted"
                 >
                   {t.common.cancel}
@@ -473,11 +526,21 @@ export function AddClientDialog({
               )}
             </div>
             {step < totalSteps - 1 ? (
-              <button type="button" onClick={nextStep} disabled={!canNext} className={cn(primaryPill, "gap-2 disabled:opacity-50")}>
+              <button
+                type="button"
+                onClick={nextStep}
+                disabled={!canNext}
+                className={cn(primaryPill, "gap-2 disabled:opacity-50")}
+              >
                 Suivant <ChevronRight className="h-4 w-4" />
               </button>
             ) : (
-              <button type="button" onClick={submit} disabled={busy} className={cn(primaryPill, "gap-2 disabled:opacity-60")}>
+              <button
+                type="button"
+                onClick={submit}
+                disabled={busy}
+                className={cn(primaryPill, "gap-2 disabled:opacity-60")}
+              >
                 {busy ? "..." : a.submit} {!busy ? <Check className="h-4 w-4" /> : null}
               </button>
             )}

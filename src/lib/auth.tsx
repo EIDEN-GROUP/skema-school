@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { supabase } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
 import type { UserRole } from "@/lib/database-types";
+import { track, reset, errorType } from "@/lib/analytics";
 
 type AuthUser = User | null;
 
@@ -25,7 +26,9 @@ const Ctx = createContext<AuthCtx>({
 
 /** Access token of the current session   passed to superadmin server mutations. */
 export async function getAccessToken(): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return session?.access_token ?? "";
 }
 
@@ -42,7 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -69,7 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (user.user_metadata?.role === "superadmin") {
           setRole("superadmin");
           // Attempt to backfill the DB so it sticks on next reload
-          supabase.from("profiles").upsert({ id: user.id, role: "superadmin" }).then().catch(() => {});
+          supabase
+            .from("profiles")
+            .upsert({ id: user.id, role: "superadmin" })
+            .then()
+            .catch(() => {});
         } else {
           setRole("admin");
         }
@@ -81,13 +90,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   const login = async (email: string, password: string): Promise<{ error: string | null }> => {
+    track("login_started", { auth_method: "email_password" });
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
+    if (error) {
+      // Only the coarse, non-sensitive error class is sent — never the message.
+      track("login_failed", { auth_method: "email_password", error_type: errorType(error) });
+      return { error: error.message };
+    }
+    track("login_succeeded", { auth_method: "email_password" });
     return { error: null };
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
+    track("logout");
+    reset();
     setUser(null);
     setRole(null);
   };

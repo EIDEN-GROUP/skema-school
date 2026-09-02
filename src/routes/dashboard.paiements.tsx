@@ -1,22 +1,12 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Search } from "lucide-react";
 import { listPayments } from "@/lib/server-payments";
 import { Sticker } from "@/components/skema/bits";
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip as RTooltip,
-} from "recharts";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip } from "recharts";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -42,9 +32,17 @@ import {
   STATUS_COLORS,
   renderPieLabel,
 } from "@/lib/dash-ui";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 export const Route = createFileRoute("/dashboard/paiements")({
-  head: () => ({ meta: [{ title: "Paiements   CRM" }] }),
+  head: () =>
+    buildMeta({
+      title: "Paiements · SKEMA",
+      description: "Suivi des paiements des familles et des encaissements mensuels de l'école.",
+      path: "/dashboard/paiements",
+      noindex: true,
+    }),
   component: CrmPaiementsPage,
 });
 
@@ -70,7 +68,10 @@ function RecuBadge({ sent }: { sent: boolean }) {
         sent ? "bg-[#6C4DF6]/30 text-[#0E6B62]" : "bg-muted text-foreground/70",
       )}
     >
-      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", sent ? "bg-[#17B3A6]" : "bg-current")} aria-hidden />
+      <span
+        className={cn("h-1.5 w-1.5 shrink-0 rounded-full", sent ? "bg-[#17B3A6]" : "bg-current")}
+        aria-hidden
+      />
       {sent ? "Envoyé" : "Non envoyé"}
     </span>
   );
@@ -89,7 +90,9 @@ function CrmPaiementsPage() {
   const dbPayments = rawPayments as unknown as DbPayment[];
   const allPeriods = useMemo(() => {
     const set = new Set<string>();
-    dbPayments.forEach((p) => { if (p.period) set.add(p.period); });
+    dbPayments.forEach((p) => {
+      if (p.period) set.add(p.period);
+    });
     return Array.from(set).sort();
   }, [dbPayments]);
   const monthLabel = month === "tous" ? "Tous les mois" : month;
@@ -107,7 +110,8 @@ function CrmPaiementsPage() {
       if (recuFilter === "envoye" && !r.invoice_sent) return false;
       if (recuFilter === "non_envoye" && r.invoice_sent) return false;
       if (!q) return true;
-      const blob = `${r.clients?.parent_name ?? ""} ${r.clients?.child_name ?? ""} ${r.id} ${r.clients?.level ?? ""}`.toLowerCase();
+      const blob =
+        `${r.clients?.parent_name ?? ""} ${r.clients?.child_name ?? ""} ${r.id} ${r.clients?.level ?? ""}`.toLowerCase();
       return blob.includes(q);
     });
   }, [monthRows, search, modeFilter, recuFilter]);
@@ -137,9 +141,10 @@ function CrmPaiementsPage() {
   const donutTotal = donut.reduce((s, d) => s + d.value, 0);
   const encaisse = donut.reduce((s, d) => s + d.montant, 0);
 
-  const detail = detailId ? dbPayments.find((r) => r.id === detailId) ?? null : null;
+  const detail = detailId ? (dbPayments.find((r) => r.id === detailId) ?? null) : null;
 
   function exportCsv(lines: DbPayment[]) {
+    track("payments_exported", { rows: lines.length, format: "csv" });
     const header = [
       t.paiements.table.parent,
       "Élève",
@@ -181,14 +186,21 @@ function CrmPaiementsPage() {
   return (
     <div className="space-y-6">
       <header className="relative flex flex-wrap items-end justify-between gap-4">
-        <Sticker name="coinStack" tilt={-6} className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block" />
+        <Sticker
+          name="coinStack"
+          tilt={-6}
+          className="pointer-events-none absolute -top-2 right-0 hidden w-16 opacity-90 sm:block"
+        />
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{t.paiements.eyebrow}</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {t.paiements.eyebrow}
+          </p>
           <h1 className="font-hand mt-1 text-4xl tracking-tight text-foreground md:text-5xl">
-            {t.paiements.titleBold} <span className="italic text-muted-foreground">{t.paiements.titleItalic}</span>
+            {t.paiements.titleBold}{" "}
+            <span className="italic text-muted-foreground">{t.paiements.titleItalic}</span>
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Suivi mensuel des encaissements   cliquez une ligne pour ouvrir le détail du paiement.
+            Suivi mensuel des encaissements cliquez une ligne pour ouvrir le détail du paiement.
           </p>
         </div>
         <button type="button" onClick={() => exportCsv(filtered)} className={ghostPill}>
@@ -200,7 +212,9 @@ function CrmPaiementsPage() {
       {/* Filtres (barre pleine largeur) puis l'analyse circulaire */}
       <div className="space-y-4">
         <section className={cn(softCard, "p-5")}>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Filtres   vue mensuelle</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Filtres vue mensuelle
+          </p>
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end">
             <div className="relative lg:flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
@@ -216,21 +230,35 @@ function CrmPaiementsPage() {
               <div className="lg:w-44">
                 <Label className={labelClass}>Mois</Label>
                 <Select value={month} onValueChange={setMonth}>
-                  <SelectTrigger className={cn(selectTriggerClass, "mt-1.5")} aria-label="Filtrer par mois">
+                  <SelectTrigger
+                    className={cn(selectTriggerClass, "mt-1.5")}
+                    aria-label="Filtrer par mois"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className={softSelectContent}>
                     <SelectItem value="tous">Tous les mois</SelectItem>
                     {allPeriods.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="lg:w-44">
                 <Label className={labelClass}>Mode de paiement</Label>
-                <Select value={modeFilter} onValueChange={setModeFilter}>
-                  <SelectTrigger className={cn(selectTriggerClass, "mt-1.5")} aria-label={t.paiements.paymentModeAria}>
+                <Select
+                  value={modeFilter}
+                  onValueChange={(v) => {
+                    setModeFilter(v);
+                    track("payment_status_filtered", { filter_type: "mode" });
+                  }}
+                >
+                  <SelectTrigger
+                    className={cn(selectTriggerClass, "mt-1.5")}
+                    aria-label={t.paiements.paymentModeAria}
+                  >
                     <SelectValue placeholder={t.common.allModes} />
                   </SelectTrigger>
                   <SelectContent className={softSelectContent}>
@@ -244,8 +272,17 @@ function CrmPaiementsPage() {
               </div>
               <div className="lg:w-44">
                 <Label className={labelClass}>Reçu de paiement</Label>
-                <Select value={recuFilter} onValueChange={setRecuFilter}>
-                  <SelectTrigger className={cn(selectTriggerClass, "mt-1.5")} aria-label="Filtrer par reçu de paiement">
+                <Select
+                  value={recuFilter}
+                  onValueChange={(v) => {
+                    setRecuFilter(v);
+                    track("payment_status_filtered", { filter_type: "recu" });
+                  }}
+                >
+                  <SelectTrigger
+                    className={cn(selectTriggerClass, "mt-1.5")}
+                    aria-label="Filtrer par reçu de paiement"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className={softSelectContent}>
@@ -265,7 +302,9 @@ function CrmPaiementsPage() {
 
         {/* Camembert plein   part de chaque mode de paiement, % inscrit dans la part */}
         <section className={cn(softCard, "p-5")}>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Analyse   {monthLabel}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Analyse {monthLabel}
+          </p>
           <div className="mt-2 flex flex-col items-center gap-6 lg:flex-row lg:items-center">
             <div className="h-48 w-full max-w-[15rem] shrink-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -292,9 +331,15 @@ function CrmPaiementsPage() {
             </div>
             <ul className="grid w-full gap-1.5 sm:grid-cols-2 lg:flex-1">
               {donut.map((d) => (
-                <li key={d.key} className="flex items-center justify-between gap-2 rounded-full bg-muted/60 px-3 py-1.5 text-xs">
+                <li
+                  key={d.key}
+                  className="flex items-center justify-between gap-2 rounded-full bg-muted/60 px-3 py-1.5 text-xs"
+                >
                   <span className="flex items-center gap-2 font-medium text-foreground">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: d.color }}
+                    />
                     {d.name}
                   </span>
                   <span className="font-semibold tabular-nums text-foreground">
@@ -324,9 +369,13 @@ function CrmPaiementsPage() {
             <thead>
               <tr className="border-b border-[#001B3D]/15 bg-muted/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="whitespace-nowrap px-4 py-3.5">{t.paiements.table.parent}</th>
-                <th className="whitespace-nowrap px-4 py-3.5 text-right">{t.paiements.table.amount}</th>
+                <th className="whitespace-nowrap px-4 py-3.5 text-right">
+                  {t.paiements.table.amount}
+                </th>
                 <th className="whitespace-nowrap px-4 py-3.5">{t.paiements.table.date}</th>
-                <th className="whitespace-nowrap px-4 py-3.5 text-center">{t.paiements.table.mode}</th>
+                <th className="whitespace-nowrap px-4 py-3.5 text-center">
+                  {t.paiements.table.mode}
+                </th>
                 <th className="whitespace-nowrap px-4 py-3.5 text-center">Statut</th>
                 <th className="whitespace-nowrap px-4 py-3.5">N° de reçu</th>
                 <th className="whitespace-nowrap px-4 py-3.5 text-center">Reçu de paiement</th>
@@ -342,42 +391,53 @@ function CrmPaiementsPage() {
                 // arbitraire   la largeur reste réservée, l'alignement tient.
                 const accent = status ? STATUS_COLORS[status] : "transparent";
                 return (
-                <tr
-                  key={r.id}
-                  onClick={() => setDetailId(r.id)}
-                  className="cursor-pointer transition-colors hover:bg-[#6C4DF6]/10"
-                >
-                  <td
-                    className="border-l-[3px] px-4 py-3.5 font-medium text-foreground"
-                    style={{ borderLeftColor: accent }}
+                  <tr
+                    key={r.id}
+                    onClick={() => setDetailId(r.id)}
+                    className="cursor-pointer transition-colors hover:bg-[#6C4DF6]/10"
                   >
-                    {c?.parent_name ?? ""}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold tabular-nums text-foreground">
-                    {r.amount} {t.common.mad}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 tabular-nums text-foreground/90">{dash(r.date)}</td>
-                  <td className="px-4 py-3.5 text-center">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#001B3D]/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#001B3D]">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#001B3D]" aria-hidden />
-                      {r.mode ?? "ESPÈCES"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    {status ? <span className={statusPill(status)}>{STATUS_LABEL[status]}</span> : null}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs text-foreground/90">{r.id.slice(0, 8)}</td>
-                  <td className="px-4 py-3.5 text-center">
-                    <RecuBadge sent={r.invoice_sent} />
-                  </td>
-                </tr>
+                    <td
+                      className="border-l-[3px] px-4 py-3.5 font-medium text-foreground"
+                      style={{ borderLeftColor: accent }}
+                    >
+                      {c?.parent_name ?? ""}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold tabular-nums text-foreground">
+                      {r.amount} {t.common.mad}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 tabular-nums text-foreground/90">
+                      {dash(r.date)}
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#001B3D]/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#001B3D]">
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#001B3D]"
+                          aria-hidden
+                        />
+                        {r.mode ?? "ESPÈCES"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      {status ? (
+                        <span className={statusPill(status)}>{STATUS_LABEL[status]}</span>
+                      ) : null}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs text-foreground/90">
+                      {r.id.slice(0, 8)}
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <RecuBadge sent={r.invoice_sent} />
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
         {filtered.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t.paiements.noMatch}</p>
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+            {t.paiements.noMatch}
+          </p>
         ) : null}
         <TablePagination
           page={pager.page}
@@ -425,7 +485,9 @@ function PaymentDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogSurface, "w-[min(100vw-1.5rem,640px)] max-w-[640px]")}>
-        <DialogDescription className="sr-only">Détail du paiement {row.id.slice(0, 8)}</DialogDescription>
+        <DialogDescription className="sr-only">
+          Détail du paiement {row.id.slice(0, 8)}
+        </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col border-t-4 border-t-[#6C4DF6]">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#001B3D]/10 px-6 pb-4 pt-6 pr-14">
             <div>
@@ -433,7 +495,8 @@ function PaymentDetailDialog({
                 Paiement
               </p>
               <DialogTitle className="mt-1 text-left font-display text-xl font-semibold tracking-tight text-foreground">
-                {c?.parent_name ?? ""} <span className="font-normal text-muted-foreground">· {c?.child_name ?? ""}</span>
+                {c?.parent_name ?? ""}{" "}
+                <span className="font-normal text-muted-foreground">· {c?.child_name ?? ""}</span>
               </DialogTitle>
             </div>
             {status ? <span className={statusPill(status)}>{STATUS_LABEL[status]}</span> : null}

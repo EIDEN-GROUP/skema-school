@@ -1,22 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { buildMeta } from "@/lib/seo/metadata";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Building2,
-  Pause,
-  Pencil,
-  Play,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Building2, Pause, Pencil, Play, Plus, Search, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +49,8 @@ import {
   softSelectTrigger,
   statusPill,
 } from "@/lib/dash-ui";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 type CentresSearch = {
   name?: string;
@@ -69,7 +59,13 @@ type CentresSearch = {
 };
 
 export const Route = createFileRoute("/superadmin/centres")({
-  head: () => ({ meta: [{ title: "Centres   Superadmin" }] }),
+  head: () =>
+    buildMeta({
+      title: "Superadmin · Centres",
+      description: "Gestion des centres de la plateforme : plans, statuts et abonnements mensuels.",
+      path: "/superadmin/centres",
+      noindex: true,
+    }),
   validateSearch: (search: Record<string, unknown>): CentresSearch => ({
     name: typeof search.name === "string" ? search.name : undefined,
     email: typeof search.email === "string" ? search.email : undefined,
@@ -173,6 +169,7 @@ function SuperadminCentres() {
     mutationFn: async (f: CenterForm) =>
       createCenter({ data: { token: await getAccessToken(), ...toInput(f) } }),
     onSuccess: () => {
+      track("school_selected", { role: "superadmin" });
       toast.success(tc.created);
       setDialogOpen(false);
       invalidate();
@@ -184,6 +181,10 @@ function SuperadminCentres() {
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<CenterInput> }) =>
       updateCenter({ data: { token: await getAccessToken(), id, ...updates } }),
     onSuccess: () => {
+      track("account_status_changed", {
+        status: form.status as "actif" | "suspendu",
+        role: "superadmin",
+      });
       toast.success(tc.updated);
       setDialogOpen(false);
       setConfirmAction(null);
@@ -193,9 +194,9 @@ function SuperadminCentres() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) =>
-      deleteCenter({ data: { token: await getAccessToken(), id } }),
+    mutationFn: async (id: string) => deleteCenter({ data: { token: await getAccessToken(), id } }),
     onSuccess: () => {
+      track("school_viewed", { role: "superadmin" });
       toast.success(tc.deleted);
       setConfirmAction(null);
       invalidate();
@@ -207,10 +208,7 @@ function SuperadminCentres() {
     const q = search.trim().toLowerCase();
     if (!q) return centers;
     return centers.filter((c) =>
-      [c.name, c.city, c.contact_email, c.contact_phone]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
+      [c.name, c.city, c.contact_email, c.contact_phone].join(" ").toLowerCase().includes(q),
     );
   }, [centers, search]);
 
@@ -220,7 +218,11 @@ function SuperadminCentres() {
   const planLabel = (plan: string) =>
     plan === "premium" ? tc.planPremium : plan === "standard" ? tc.planStandard : tc.planEssai;
   const statusLabel = (status: string) =>
-    status === "actif" ? tc.statusActif : status === "suspendu" ? tc.statusSuspendu : tc.statusEssai;
+    status === "actif"
+      ? tc.statusActif
+      : status === "suspendu"
+        ? tc.statusSuspendu
+        : tc.statusEssai;
 
   const openCreate = () => {
     setEditing(null);
@@ -229,6 +231,7 @@ function SuperadminCentres() {
   };
 
   const openEdit = (center: CenterWithAdmins) => {
+    track("school_viewed", { plan: center.plan, status: center.status, role: "superadmin" });
     setEditing(center);
     setForm({
       name: center.name,
@@ -311,7 +314,9 @@ function SuperadminCentres() {
                     <td className="px-5 py-3 text-muted-foreground">{c.city || " "}</td>
                     <td className="px-5 py-3 text-muted-foreground">{planLabel(c.plan)}</td>
                     <td className="px-5 py-3">
-                      <span className={statusPill(statusTone(c.status))}>{statusLabel(c.status)}</span>
+                      <span className={statusPill(statusTone(c.status))}>
+                        {statusLabel(c.status)}
+                      </span>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">
                       {c.center_admins.length === 0

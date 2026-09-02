@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { buildMeta } from "@/lib/seo/metadata";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPlatformStats,
@@ -23,9 +25,18 @@ import {
 import { PageTitle, StatCard } from "@/components/dash-shell";
 import { useDashboardI18n } from "@/lib/landing-i18n";
 import { softCard, dashTooltip, statusPill, renderPieLabel } from "@/lib/dash-ui";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 export const Route = createFileRoute("/superadmin/")({
-  head: () => ({ meta: [{ title: "Vue d'ensemble   Superadmin" }] }),
+  head: () =>
+    buildMeta({
+      title: "Superadmin · Vue d'ensemble",
+      description:
+        "Vue d'ensemble de la plateforme : centres actifs, administrateurs et demandes de démo.",
+      path: "/superadmin",
+      noindex: true,
+    }),
   component: SuperadminOverview,
 });
 
@@ -45,6 +56,12 @@ function statusTone(status: string): "paye" | "en_attente" | "retard" | "neutral
 function SuperadminOverview() {
   const { t, numberLocale } = useDashboardI18n();
   const st = t.superadmin.overview;
+  const superadminViewedRef = useRef(false);
+  useEffect(() => {
+    if (superadminViewedRef.current) return;
+    superadminViewedRef.current = true;
+    track("superadmin_dashboard_viewed", {});
+  }, []);
 
   const { data: stats } = useQuery({ queryKey: ["platform-stats"], queryFn: getPlatformStats });
   const { data: revenue = [] } = useQuery({
@@ -106,13 +123,29 @@ function SuperadminOverview() {
           <div className="h-60 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenue} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(40,57,108,0.08)" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(40,57,108,0.08)"
+                  vertical={false}
+                />
                 <XAxis dataKey="m" tickLine={false} axisLine={false} fontSize={12} />
                 <YAxis tickLine={false} axisLine={false} fontSize={12} />
                 <Tooltip contentStyle={dashTooltip} cursor={{ fill: "rgba(40,57,108,0.05)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="v" name={st.platformRevenue} fill="#001B3D" radius={[6, 6, 0, 0]} maxBarSize={42} />
-                <Bar dataKey="mrr" name={st.mrr} fill="#A9C6FF" radius={[6, 6, 0, 0]} maxBarSize={42} />
+                <Bar
+                  dataKey="v"
+                  name={st.platformRevenue}
+                  fill="#001B3D"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={42}
+                />
+                <Bar
+                  dataKey="mrr"
+                  name={st.mrr}
+                  fill="#A9C6FF"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={42}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -148,7 +181,10 @@ function SuperadminOverview() {
               </div>
               <div className="mt-3 flex flex-wrap justify-center gap-3">
                 {pieData.map((entry) => (
-                  <span key={entry.plan} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span
+                    key={entry.plan}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                  >
                     <span
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: PLAN_COLORS[entry.plan] ?? "#4B5563" }}
@@ -180,20 +216,36 @@ function SuperadminOverview() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-t border-[#001B3D]/10 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">{t.superadmin.centres.name}</th>
-                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">{t.superadmin.centres.city}</th>
-                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">{t.superadmin.centres.plan}</th>
-                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">{t.superadmin.centres.status}</th>
+                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">
+                    {t.superadmin.centres.name}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">
+                    {t.superadmin.centres.city}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">
+                    {t.superadmin.centres.plan}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 font-medium sm:px-5">
+                    {t.superadmin.centres.status}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {latest.map((c) => (
                   <tr key={c.id} className="border-t border-[#001B3D]/10">
-                    <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground sm:px-5">{c.name}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground sm:px-5">{c.city || " "}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground sm:px-5">{planLabel(c.plan)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground sm:px-5">
+                      {c.name}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground sm:px-5">
+                      {c.city || " "}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground sm:px-5">
+                      {planLabel(c.plan)}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 sm:px-5">
-                      <span className={statusPill(statusTone(c.status))}>{statusLabel(c.status)}</span>
+                      <span className={statusPill(statusTone(c.status))}>
+                        {statusLabel(c.status)}
+                      </span>
                     </td>
                   </tr>
                 ))}

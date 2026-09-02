@@ -13,12 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -64,6 +59,8 @@ import {
   labelClass,
   primaryPill,
 } from "@/lib/dash-ui";
+import { track, trackFirstOnce } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 export type NavItem = {
   to: string;
@@ -108,8 +105,13 @@ function ShellNotifications() {
     refetchInterval: 30_000,
   });
   const messages = rawMessages as unknown as Array<{
-    id: string; direction: "sent" | "received"; phone: string; content: string;
-    status: string; created_at: string; clients: { parent_name: string } | null;
+    id: string;
+    direction: "sent" | "received";
+    phone: string;
+    content: string;
+    status: string;
+    created_at: string;
+    clients: { parent_name: string } | null;
   }>;
 
   const received = useMemo(() => messages.filter((m) => m.direction === "received"), [messages]);
@@ -139,17 +141,33 @@ function ShellNotifications() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openOn = (n: PanelTab) => { setTab(n); setSelected(null); setOpen(true); };
-  const selectedReceived = tab === "alertes" && selected ? received.find((m) => m.id === selected) : undefined;
-  const selectedSent = tab === "whatsapp" && selected ? sent.find((m) => m.id === selected) : undefined;
+  const openOn = (n: PanelTab) => {
+    setTab(n);
+    setSelected(null);
+    setOpen(true);
+  };
+  const selectedReceived =
+    tab === "alertes" && selected ? received.find((m) => m.id === selected) : undefined;
+  const selectedSent =
+    tab === "whatsapp" && selected ? sent.find((m) => m.id === selected) : undefined;
 
-  const triggerClass = "relative grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#001B3D]/15 text-muted-foreground transition-colors hover:text-foreground";
-  const rowClass = "flex w-full gap-3 px-5 py-4 text-left transition-colors hover:bg-[#6C4DF6]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#17B3A6]";
-  const actionClass = "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition";
+  const triggerClass =
+    "relative grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#001B3D]/15 text-muted-foreground transition-colors hover:text-foreground";
+  const rowClass =
+    "flex w-full gap-3 px-5 py-4 text-left transition-colors hover:bg-[#6C4DF6]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#17B3A6]";
+  const actionClass =
+    "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition";
 
   return (
     <>
-      <button type="button" onClick={() => openOn("alertes")} aria-label={received.length > 0 ? `Notifications   ${received.length} reçues` : "Notifications"} className={cn(triggerClass, "hover:bg-[#6C4DF6]/15")}>
+      <button
+        type="button"
+        onClick={() => openOn("alertes")}
+        aria-label={
+          received.length > 0 ? `Notifications   ${received.length} reçues` : "Notifications"
+        }
+        className={cn(triggerClass, "hover:bg-[#6C4DF6]/15")}
+      >
         <Bell className="h-4 w-4" strokeWidth={1.75} />
         {received.length > 0 ? (
           <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#FF666B] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
@@ -158,20 +176,39 @@ function ShellNotifications() {
         ) : null}
       </button>
 
-      <button type="button" onClick={() => openOn("whatsapp")} aria-label={failedCount > 0 ? `WhatsApp   ${failedCount} échecs` : `WhatsApp   ${sentCount} envoyés`} className={cn(triggerClass, "hover:bg-[#25D366]/15")}>
+      <button
+        type="button"
+        onClick={() => openOn("whatsapp")}
+        aria-label={
+          failedCount > 0 ? `WhatsApp   ${failedCount} échecs` : `WhatsApp   ${sentCount} envoyés`
+        }
+        className={cn(triggerClass, "hover:bg-[#25D366]/15")}
+      >
         <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
         {sentCount > 0 ? (
-          <span className={cn("absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white", failedCount > 0 ? "bg-[#FF666B]" : "bg-[#25D366]")}>
-            {(failedCount || sentCount) > 9 ? "9+" : (failedCount || sentCount)}
+          <span
+            className={cn(
+              "absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white",
+              failedCount > 0 ? "bg-[#FF666B]" : "bg-[#25D366]",
+            )}
+          >
+            {(failedCount || sentCount) > 9 ? "9+" : failedCount || sentCount}
           </span>
         ) : null}
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex w-[min(26rem,100vw-2rem)] flex-col gap-0 border-l-[#001B3D]/10 bg-card p-0 sm:max-w-md">
+        <SheetContent
+          side="right"
+          className="flex w-[min(26rem,100vw-2rem)] flex-col gap-0 border-l-[#001B3D]/10 bg-card p-0 sm:max-w-md"
+        >
           <SheetHeader className="space-y-1 border-b border-[#001B3D]/10 px-5 pb-4 pt-5 pr-14 text-left">
-            <SheetTitle className="font-display text-xl tracking-tight text-foreground">Centre de messages</SheetTitle>
-            <SheetDescription className="text-xs">Notifications reçues des parents et messages envoyés.</SheetDescription>
+            <SheetTitle className="font-display text-xl tracking-tight text-foreground">
+              Centre de messages
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              Notifications reçues des parents et messages envoyés.
+            </SheetDescription>
           </SheetHeader>
 
           {!selected ? (
@@ -179,31 +216,73 @@ function ShellNotifications() {
               {/* Tabs and actions sit on separate rows: at the sheet's width, all four
                   controls on one line wrap "Tout effacer" and clip "Envoyer". */}
               <div className="flex gap-1">
-                {([{ key: "alertes" as const, label: "Notifications", count: received.length, dot: "bg-[#FF666B]" },
-                   { key: "whatsapp" as const, label: "WhatsApp", count: failedCount || sentCount, dot: failedCount > 0 ? "bg-[#FF666B]" : "bg-[#25D366]" }] as const).map((tb) => (
-                  <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
-                    className={cn("inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors", tab === tb.key ? "bg-[#001B3D] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                {(
+                  [
+                    {
+                      key: "alertes" as const,
+                      label: "Notifications",
+                      count: received.length,
+                      dot: "bg-[#FF666B]",
+                    },
+                    {
+                      key: "whatsapp" as const,
+                      label: "WhatsApp",
+                      count: failedCount || sentCount,
+                      dot: failedCount > 0 ? "bg-[#FF666B]" : "bg-[#25D366]",
+                    },
+                  ] as const
+                ).map((tb) => (
+                  <button
+                    key={tb.key}
+                    type="button"
+                    onClick={() => setTab(tb.key)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                      tab === tb.key
+                        ? "bg-[#001B3D] text-white"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
                     {tb.label}
-                    {tb.count > 0 ? <span className={cn("grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none text-white", tb.dot)}>{tb.count}</span> : null}
+                    {tb.count > 0 ? (
+                      <span
+                        className={cn(
+                          "grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none text-white",
+                          tb.dot,
+                        )}
+                      >
+                        {tb.count}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
               <div className="flex items-center gap-2">
                 {tab === "alertes" && received.length > 0 ? (
-                  <button type="button" onClick={() => clearMutation.mutate()}
-                    className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#FF666B]/30 px-3.5 py-1.5 text-xs font-semibold text-[#FF666B] transition hover:bg-[#FF666B]/10">
+                  <button
+                    type="button"
+                    onClick={() => clearMutation.mutate()}
+                    className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#FF666B]/30 px-3.5 py-1.5 text-xs font-semibold text-[#FF666B] transition hover:bg-[#FF666B]/10"
+                  >
                     <Trash2 className="h-3.5 w-3.5" /> Tout effacer
                   </button>
                 ) : null}
-                <button type="button" onClick={() => setSendOpen(true)}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#6C4DF6] px-4 py-1.5 text-xs font-bold text-white transition hover:brightness-105">
+                <button
+                  type="button"
+                  onClick={() => setSendOpen(true)}
+                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#6C4DF6] px-4 py-1.5 text-xs font-bold text-white transition hover:brightness-105"
+                >
                   <Send className="h-3.5 w-3.5" /> Envoyer
                 </button>
               </div>
             </div>
           ) : (
             <div className="border-b border-[#001B3D]/10 px-5 py-3">
-              <button type="button" onClick={() => setSelected(null)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#001B3D] hover:underline">
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#001B3D] hover:underline"
+              >
                 <ArrowLeft className="h-3.5 w-3.5" /> Retour à la liste
               </button>
             </div>
@@ -213,18 +292,45 @@ function ShellNotifications() {
             {selectedReceived ? (
               <div className="space-y-4 px-5 py-5">
                 <div>
-                  <p className="font-display text-lg font-semibold text-foreground">{parentName(selectedReceived)}</p>
-                  <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">{formatMsgTime(selectedReceived.created_at)}   {selectedReceived.phone}</p>
+                  <p className="font-display text-lg font-semibold text-foreground">
+                    {parentName(selectedReceived)}
+                  </p>
+                  <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {formatMsgTime(selectedReceived.created_at)} {selectedReceived.phone}
+                  </p>
                 </div>
-                <p className="rounded-2xl bg-muted/60 px-4 py-3 text-sm leading-relaxed text-foreground">{selectedReceived.content}</p>
+                <p className="rounded-2xl bg-muted/60 px-4 py-3 text-sm leading-relaxed text-foreground">
+                  {selectedReceived.content}
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  <Link to="/dashboard/familles" onClick={() => setOpen(false)} className={cn(actionClass, "bg-[#6C4DF6] text-[#001B3D] hover:brightness-105")}>
+                  <Link
+                    to="/dashboard/familles"
+                    onClick={() => setOpen(false)}
+                    className={cn(actionClass, "bg-[#6C4DF6] text-[#001B3D] hover:brightness-105")}
+                  >
                     <ExternalLink className="h-3.5 w-3.5" /> Voir la fiche famille
                   </Link>
-                  <Link to="/dashboard/paiements" onClick={() => setOpen(false)} className={cn(actionClass, "border border-[#001B3D]/15 text-foreground hover:bg-muted")}>
+                  <Link
+                    to="/dashboard/paiements"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      actionClass,
+                      "border border-[#001B3D]/15 text-foreground hover:bg-muted",
+                    )}
+                  >
                     Voir les paiements
                   </Link>
-                  <button type="button" onClick={() => { deleteMsgMutation.mutate(selectedReceived.id); setSelected(null); }} className={cn(actionClass, "border border-[#FF666B]/30 text-[#FF666B] hover:bg-[#FF666B]/10")}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deleteMsgMutation.mutate(selectedReceived.id);
+                      setSelected(null);
+                    }}
+                    className={cn(
+                      actionClass,
+                      "border border-[#FF666B]/30 text-[#FF666B] hover:bg-[#FF666B]/10",
+                    )}
+                  >
                     <Trash2 className="h-3.5 w-3.5" /> Supprimer
                   </button>
                 </div>
@@ -235,26 +341,67 @@ function ShellNotifications() {
               <div className="space-y-4 px-5 py-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-display text-lg font-semibold text-foreground">{parentName(selectedSent)}</p>
-                    <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">{formatMsgTime(selectedSent.created_at)}   {selectedSent.phone}</p>
+                    <p className="font-display text-lg font-semibold text-foreground">
+                      {parentName(selectedSent)}
+                    </p>
+                    <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {formatMsgTime(selectedSent.created_at)} {selectedSent.phone}
+                    </p>
                   </div>
-                  <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold", selectedSent.status === "sent" ? "bg-[#25D366]/15 text-[#1B7F45]" : "bg-[#FFE3E0] text-[#D93A41]")}>
-                    {selectedSent.status === "sent" ? <CheckCheck className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                  <span
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                      selectedSent.status === "sent"
+                        ? "bg-[#25D366]/15 text-[#1B7F45]"
+                        : "bg-[#FFE3E0] text-[#D93A41]",
+                    )}
+                  >
+                    {selectedSent.status === "sent" ? (
+                      <CheckCheck className="h-3 w-3" />
+                    ) : (
+                      <AlertTriangle className="h-3 w-3" />
+                    )}
                     {selectedSent.status === "sent" ? "Envoyé" : "Échec"}
                   </span>
                 </div>
-                <p className={cn("rounded-2xl border-l-[3px] px-4 py-3 text-sm leading-relaxed text-foreground", selectedSent.status === "sent" ? "border-l-[#25D366] bg-[#25D366]/[0.05]" : "border-l-[#FF666B] bg-[#FF666B]/[0.05]")}>
+                <p
+                  className={cn(
+                    "rounded-2xl border-l-[3px] px-4 py-3 text-sm leading-relaxed text-foreground",
+                    selectedSent.status === "sent"
+                      ? "border-l-[#25D366] bg-[#25D366]/[0.05]"
+                      : "border-l-[#FF666B] bg-[#FF666B]/[0.05]",
+                  )}
+                >
                   {selectedSent.content}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {selectedSent.status === "failed" ? (
-                    <p className="text-xs font-medium text-[#D93A41]">Le message n'est pas parti.</p>
+                    <p className="text-xs font-medium text-[#D93A41]">
+                      Le message n'est pas parti.
+                    </p>
                   ) : (
-                    <Link to="/dashboard/familles" onClick={() => setOpen(false)} className={cn(actionClass, "border border-[#001B3D]/15 text-foreground hover:bg-muted")}>
+                    <Link
+                      to="/dashboard/familles"
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        actionClass,
+                        "border border-[#001B3D]/15 text-foreground hover:bg-muted",
+                      )}
+                    >
                       <ExternalLink className="h-3.5 w-3.5" /> Voir la fiche famille
                     </Link>
                   )}
-                  <button type="button" onClick={() => { deleteMsgMutation.mutate(selectedSent.id); setSelected(null); }} className={cn(actionClass, "border border-[#FF666B]/30 text-[#FF666B] hover:bg-[#FF666B]/10")}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deleteMsgMutation.mutate(selectedSent.id);
+                      setSelected(null);
+                    }}
+                    className={cn(
+                      actionClass,
+                      "border border-[#FF666B]/30 text-[#FF666B] hover:bg-[#FF666B]/10",
+                    )}
+                  >
                     <Trash2 className="h-3.5 w-3.5" /> Supprimer
                   </button>
                 </div>
@@ -265,24 +412,49 @@ function ShellNotifications() {
               <ul className="divide-y divide-[#001B3D]/8">
                 {received.map((m) => (
                   <li key={m.id} className="group relative">
-                    <button type="button" onClick={() => { setSelected(m.id); }} className={cn(rowClass, "pr-12")}>
-                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#17B3A6]" aria-hidden />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelected(m.id);
+                      }}
+                      className={cn(rowClass, "pr-12")}
+                    >
+                      <span
+                        className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#17B3A6]"
+                        aria-hidden
+                      />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-medium text-foreground">{parentName(m)}</span>
+                          <span className="truncate text-sm font-medium text-foreground">
+                            {parentName(m)}
+                          </span>
                           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         </span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{m.content}</span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-wider text-muted-foreground/80">{formatMsgTime(m.created_at)}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {m.content}
+                        </span>
+                        <span className="mt-1 block text-[10px] uppercase tracking-wider text-muted-foreground/80">
+                          {formatMsgTime(m.created_at)}
+                        </span>
                       </span>
                     </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); deleteMsgMutation.mutate(m.id); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-[#FF666B]/10 hover:text-[#FF666B] transition-all">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteMsgMutation.mutate(m.id);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-[#FF666B]/10 hover:text-[#FF666B] transition-all"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </li>
                 ))}
-                {received.length === 0 ? <li className="px-5 py-8 text-center text-xs text-muted-foreground">Aucune notification reçue</li> : null}
+                {received.length === 0 ? (
+                  <li className="px-5 py-8 text-center text-xs text-muted-foreground">
+                    Aucune notification reçue
+                  </li>
+                ) : null}
               </ul>
             ) : null}
 
@@ -290,28 +462,66 @@ function ShellNotifications() {
               <ul className="divide-y divide-[#001B3D]/8">
                 {sent.map((m) => (
                   <li key={m.id} className="group relative">
-                    <button type="button" onClick={() => setSelected(m.id)}
-                      className={cn(rowClass, "flex-col border-l-[3px] pr-12", m.status === "sent" ? "border-l-[#25D366] bg-[#25D366]/[0.05]" : "border-l-[#FF666B] bg-[#FF666B]/[0.05]")}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(m.id)}
+                      className={cn(
+                        rowClass,
+                        "flex-col border-l-[3px] pr-12",
+                        m.status === "sent"
+                          ? "border-l-[#25D366] bg-[#25D366]/[0.05]"
+                          : "border-l-[#FF666B] bg-[#FF666B]/[0.05]",
+                      )}
+                    >
                       <span className="flex w-full items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-medium text-foreground">{parentName(m)}</span>
-                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{m.phone}</span>
+                        <span className="truncate text-sm font-medium text-foreground">
+                          {parentName(m)}
+                        </span>
+                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                          {m.phone}
+                        </span>
                       </span>
-                      <span className="mt-1 block w-full text-xs text-muted-foreground">{m.content}</span>
+                      <span className="mt-1 block w-full text-xs text-muted-foreground">
+                        {m.content}
+                      </span>
                       <span className="mt-2 flex w-full items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">{formatMsgTime(m.created_at)}</span>
-                        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold", m.status === "sent" ? "bg-[#25D366]/15 text-[#1B7F45]" : "bg-[#FFE3E0] text-[#D93A41]")}>
-                          {m.status === "sent" ? <CheckCheck className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">
+                          {formatMsgTime(m.created_at)}
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            m.status === "sent"
+                              ? "bg-[#25D366]/15 text-[#1B7F45]"
+                              : "bg-[#FFE3E0] text-[#D93A41]",
+                          )}
+                        >
+                          {m.status === "sent" ? (
+                            <CheckCheck className="h-3 w-3" />
+                          ) : (
+                            <AlertTriangle className="h-3 w-3" />
+                          )}
                           {m.status === "sent" ? "Envoyé" : "Échec"}
                         </span>
                       </span>
                     </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); deleteMsgMutation.mutate(m.id); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-[#FF666B]/10 hover:text-[#FF666B] transition-all">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteMsgMutation.mutate(m.id);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-[#FF666B]/10 hover:text-[#FF666B] transition-all"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </li>
                 ))}
-                {sent.length === 0 ? <li className="px-5 py-8 text-center text-xs text-muted-foreground">Aucun message envoyé</li> : null}
+                {sent.length === 0 ? (
+                  <li className="px-5 py-8 text-center text-xs text-muted-foreground">
+                    Aucun message envoyé
+                  </li>
+                ) : null}
               </ul>
             ) : null}
           </div>
@@ -323,11 +533,23 @@ function ShellNotifications() {
   );
 }
 
-function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+function SendMessageModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const { t } = useDashboardI18n();
   const queryClient = useQueryClient();
   const { data: clients = [] } = useQuery({ queryKey: ["clients"], queryFn: () => listClients() });
-  const typedClients = clients as unknown as Array<{ id: string; parent_name: string; phone: string; email: string; whatsapp_optin: boolean }>;
+  const typedClients = clients as unknown as Array<{
+    id: string;
+    parent_name: string;
+    phone: string;
+    email: string;
+    whatsapp_optin: boolean;
+  }>;
 
   const [mode, setMode] = useState<"individual" | "all">("individual");
   const [selectedId, setSelectedId] = useState<string>("");
@@ -335,7 +557,9 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
   const [content, setContent] = useState("");
 
   const sendMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<{
+      broadcast?: { total: number; success: number; failed: number };
+    } | null> => {
       if (mode === "individual") {
         if (!selectedId) throw new Error("Sélectionnez un parent");
         const client = typedClients.find((c) => c.id === selectedId);
@@ -354,19 +578,54 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
           });
           if (!em.ok) throw new Error(em.error ?? "Erreur email");
         }
-      } else {
-        const bc = await sendBroadcast({ data: { content } });
-        if (!bc.ok) throw new Error(bc.error ?? "Erreur envoi");
+        return null;
       }
+      const bc = await sendBroadcast({ data: { content } });
+      if (!bc.ok) throw new Error(bc.error ?? "Erreur envoi");
+      return {
+        broadcast: { total: bc.total ?? 0, success: bc.success ?? 0, failed: bc.failed ?? 0 },
+      };
     },
-    onSuccess: () => {
-      toast.success(mode === "all" ? "Message envoyé à tous les parents" : "Message envoyé");
+    onSuccess: (result) => {
+      const broadcast = result?.broadcast;
+      const isBroadcast = mode === "all" || Boolean(broadcast);
+      const recipientCount = broadcast ? broadcast.total : isBroadcast ? 0 : 1;
+      const failureCount = broadcast ? broadcast.failed : 0;
+      const successCount = broadcast ? broadcast.success : 1;
+      track("message_sent", {
+        channel: channel as "whatsapp" | "email",
+        message_type: "custom",
+        recipient_count: recipientCount,
+      });
+      trackFirstOnce("message_sent", "first_message_sent", {
+        channel: channel as "whatsapp" | "email",
+      });
+      if (broadcast) {
+        track("broadcast_sent", {
+          channel: channel as "whatsapp" | "email",
+          recipient_count: recipientCount,
+          success_count: successCount,
+          failure_count: failureCount,
+        });
+      } else {
+        track("broadcast_sent", {
+          channel: channel as "whatsapp" | "email",
+          recipient_count: recipientCount,
+        });
+      }
+      toast.success(isBroadcast ? "Message envoyé à tous les parents" : "Message envoyé");
       queryClient.invalidateQueries({ queryKey: ["message-history"] });
       onOpenChange(false);
       setContent("");
       setSelectedId("");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      track("message_failed", {
+        channel: channel as "whatsapp" | "email",
+        error_type: errorType(e),
+      });
+      toast.error(e.message);
+    },
   });
 
   const valid = content.trim().length > 0 && (mode === "all" || selectedId);
@@ -377,12 +636,20 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
         <DialogDescription className="sr-only">Envoyer un message aux parents</DialogDescription>
         <div className="border-t-4 border-t-primary">
           <div className="border-b border-border px-6 pb-4 pt-6 pr-14">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Centre de messages</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Centre de messages
+            </p>
             <DialogTitle className="mt-2 text-left font-display text-xl font-semibold tracking-tight text-foreground">
               Envoyer un message
             </DialogTitle>
           </div>
-          <form className="space-y-4 px-6 py-5" onSubmit={(e) => { e.preventDefault(); if (valid) sendMutation.mutate(); }}>
+          <form
+            className="space-y-4 px-6 py-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (valid) sendMutation.mutate();
+            }}
+          >
             <div className="space-y-1.5">
               <Label className={labelClass}>Destinataire</Label>
               <div className="flex gap-2">
@@ -390,8 +657,17 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
                   { value: "individual" as const, label: "Individuel" },
                   { value: "all" as const, label: "Tous les parents" },
                 ].map((opt) => (
-                  <button key={opt.value} type="button" onClick={() => setMode(opt.value)}
-                    className={cn("rounded-full px-4 py-2 text-xs font-semibold transition", mode === opt.value ? "bg-[#001B3D] text-white" : "border border-[#001B3D]/15 text-foreground hover:bg-muted")}>
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setMode(opt.value)}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-xs font-semibold transition",
+                      mode === opt.value
+                        ? "bg-[#001B3D] text-white"
+                        : "border border-[#001B3D]/15 text-foreground hover:bg-muted",
+                    )}
+                  >
                     {opt.label}
                   </button>
                 ))}
@@ -400,14 +676,18 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
 
             {mode === "individual" ? (
               <div className="space-y-1.5">
-                <Label htmlFor="msg-client" className={labelClass}>Parent</Label>
+                <Label htmlFor="msg-client" className={labelClass}>
+                  Parent
+                </Label>
                 <Select value={selectedId} onValueChange={setSelectedId}>
                   <SelectTrigger id="msg-client" className="rounded-xl border-[#001B3D]/15">
                     <SelectValue placeholder="Sélectionner un parent..." />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-[#001B3D]/10">
                     {typedClients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.parent_name}   {c.phone}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.parent_name} {c.phone}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -421,8 +701,17 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
                   { value: "whatsapp" as const, label: "WhatsApp", icon: MessageCircle },
                   { value: "email" as const, label: "Email", icon: Send },
                 ].map((opt) => (
-                  <button key={opt.value} type="button" onClick={() => setChannel(opt.value)}
-                    className={cn("inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition", channel === opt.value ? "bg-[#001B3D] text-white" : "border border-[#001B3D]/15 text-foreground hover:bg-muted")}>
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setChannel(opt.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition",
+                      channel === opt.value
+                        ? "bg-[#001B3D] text-white"
+                        : "border border-[#001B3D]/15 text-foreground hover:bg-muted",
+                    )}
+                  >
                     <opt.icon className="h-3.5 w-3.5" /> {opt.label}
                   </button>
                 ))}
@@ -430,19 +719,33 @@ function SendMessageModal({ open, onOpenChange }: { open: boolean; onOpenChange:
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="msg-content" className={labelClass}>Message</Label>
-              <textarea id="msg-content" value={content} onChange={(e) => setContent(e.target.value)} rows={4} required
+              <Label htmlFor="msg-content" className={labelClass}>
+                Message
+              </Label>
+              <textarea
+                id="msg-content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={4}
+                required
                 className={cn(inputClass, "min-h-[100px] resize-y rounded-2xl px-4 py-3 text-sm")}
-                placeholder="Écrivez votre message ici..." />
+                placeholder="Écrivez votre message ici..."
+              />
             </div>
 
             <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-5">
-              <button type="button" onClick={() => onOpenChange(false)}
-                className="rounded-full border border-[#001B3D]/15 bg-card px-5 py-2 text-sm font-medium text-foreground hover:bg-muted">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="rounded-full border border-[#001B3D]/15 bg-card px-5 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              >
                 {t.common.cancel}
               </button>
-              <button type="submit" disabled={!valid || sendMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-full bg-[#6C4DF6] px-5 py-2 text-sm font-bold text-white shadow-[0_14px_30px_-14px_rgba(108,77,246,0.6)] transition hover:brightness-105 disabled:opacity-50">
+              <button
+                type="submit"
+                disabled={!valid || sendMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-full bg-[#6C4DF6] px-5 py-2 text-sm font-bold text-white shadow-[0_14px_30px_-14px_rgba(108,77,246,0.6)] transition hover:brightness-105 disabled:opacity-50"
+              >
                 <Send className="h-4 w-4" />
                 {sendMutation.isPending ? "Envoi..." : "Envoyer"}
               </button>
@@ -486,10 +789,8 @@ function RoleAvatar({ className }: { className?: string }) {
 }
 
 function topNavItemActive(pathname: string, to: string) {
-  if (to === "/dashboard")
-    return pathname === "/dashboard" || pathname === "/dashboard/";
-  if (to === "/superadmin")
-    return pathname === "/superadmin" || pathname === "/superadmin/";
+  if (to === "/dashboard") return pathname === "/dashboard" || pathname === "/dashboard/";
+  if (to === "/superadmin") return pathname === "/superadmin" || pathname === "/superadmin/";
   if (to === "/dashboard/rendez-vous")
     return pathname === "/dashboard/rendez-vous" || pathname.startsWith("/dashboard/rendez-vous/");
   if (to === "/dashboard/familles")
@@ -517,8 +818,14 @@ function MobileBottomNav({
   const labelClass = compact ? "text-[9px] leading-tight" : "text-[10px] leading-tight";
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#001B3D]/10 bg-white/95 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-10px_35px_-15px_rgba(40,57,108,0.3)] backdrop-blur-xl lg:hidden" aria-label={mainNavAria}>
-      <div className="grid min-h-[4.25rem] w-full auto-cols-fr" style={{ gridTemplateColumns: `repeat(${topNav.length}, minmax(0, 1fr))` }}>
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#001B3D]/10 bg-white/95 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-10px_35px_-15px_rgba(40,57,108,0.3)] backdrop-blur-xl lg:hidden"
+      aria-label={mainNavAria}
+    >
+      <div
+        className="grid min-h-[4.25rem] w-full auto-cols-fr"
+        style={{ gridTemplateColumns: `repeat(${topNav.length}, minmax(0, 1fr))` }}
+      >
         {topNav.map((n) => {
           const active = topNavItemActive(pathname, n.to);
           const Icon = n.icon;
@@ -528,18 +835,31 @@ function MobileBottomNav({
               to={n.to}
               className={cn(
                 "relative mx-0.5 flex min-w-0 flex-col items-center justify-center gap-1 rounded-full px-0.5 py-2 font-sans transition-colors",
-                active ? "text-foreground" : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                active
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
               )}
             >
               <span className="flex h-1 w-full shrink-0 items-center justify-center" aria-hidden>
-                <span className={cn("h-0.5 w-6 shrink-0 rounded-full", active ? "bg-primary" : "bg-transparent")} />
+                <span
+                  className={cn(
+                    "h-0.5 w-6 shrink-0 rounded-full",
+                    active ? "bg-primary" : "bg-transparent",
+                  )}
+                />
               </span>
               <Icon
                 className="h-5 w-5 shrink-0"
                 style={{ color: navIconColor(n.to) }}
                 strokeWidth={active ? 2.25 : 1.75}
               />
-              <span className={cn( "w-full max-w-full truncate px-0.5 text-center font-semibold leading-tight", labelClass, active ? "text-foreground" : "font-medium text-muted-foreground", )}>
+              <span
+                className={cn(
+                  "w-full max-w-full truncate px-0.5 text-center font-semibold leading-tight",
+                  labelClass,
+                  active ? "text-foreground" : "font-medium text-muted-foreground",
+                )}
+              >
                 {n.shortLabel ?? n.label}
               </span>
             </Link>
@@ -619,7 +939,13 @@ export function DashShell({
     const allNav = [...topNav, ...(secondaryNav ?? [])];
 
     return (
-      <div className={cn("relative flex min-h-0 overflow-hidden bg-papier font-sans", fillHeight ? "h-dvh" : "h-full")} dir={shellDir}>
+      <div
+        className={cn(
+          "relative flex min-h-0 overflow-hidden bg-papier font-sans",
+          fillHeight ? "h-dvh" : "h-full",
+        )}
+        dir={shellDir}
+      >
         <div className="dots pointer-events-none fixed inset-0 -z-10 opacity-50" />
 
         {/* Left rail — desktop only, mobile keeps the bottom tab bar */}
@@ -629,7 +955,12 @@ export function DashShell({
             railCollapsed ? "w-[76px] px-3" : "w-[248px] px-5",
           )}
         >
-          <div className={cn("flex items-center", railCollapsed ? "justify-center" : "justify-between")}>
+          <div
+            className={cn(
+              "flex items-center",
+              railCollapsed ? "justify-center" : "justify-between",
+            )}
+          >
             <Link to={topNav[0]?.to ?? "/dashboard"} className="flex items-center">
               <img
                 src="/favicon.png"
@@ -700,7 +1031,7 @@ export function DashShell({
               <RoleAvatar className="h-9 w-9" />
               {!railCollapsed && (
                 <p className="min-w-0 truncate text-sm font-medium text-nuit">
-                  {(user?.user_metadata?.name || user?.email || "admin")}
+                  {user?.user_metadata?.name || user?.email || "admin"}
                 </p>
               )}
             </div>
@@ -742,12 +1073,20 @@ export function DashShell({
           </header>
 
           {/* pb clears the fixed bottom nav on mobile */}
-          <main data-dashboard-main dir={shellDir} className="min-h-0 flex-1 overflow-y-auto scroll-touch p-4 pb-36 lg:p-8 lg:pb-8">
+          <main
+            data-dashboard-main
+            dir={shellDir}
+            className="min-h-0 flex-1 overflow-y-auto scroll-touch p-4 pb-36 lg:p-8 lg:pb-8"
+          >
             {children}
           </main>
         </div>
 
-        <MobileBottomNav topNav={topNav} pathname={loc.pathname} mainNavAria={t.shell.mainNavAria} />
+        <MobileBottomNav
+          topNav={topNav}
+          pathname={loc.pathname}
+          mainNavAria={t.shell.mainNavAria}
+        />
         <Toaster />
       </div>
     );
@@ -801,7 +1140,9 @@ export function DashShell({
           <div className="px-6 h-16 flex items-center justify-end gap-4">
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium leading-none text-foreground">{(user?.user_metadata?.name || user?.email || "Admin")}</p>
+                <p className="text-sm font-medium leading-none text-foreground">
+                  {user?.user_metadata?.name || user?.email || "Admin"}
+                </p>
               </div>
               <RoleAvatar className="h-9 w-9" />
             </div>
@@ -843,7 +1184,10 @@ export function StatCard({
             style={
               monochrome
                 ? undefined
-                : { backgroundColor: `color-mix(in oklab, var(--${color}) 22%, var(--background))`, color: `var(--${color})` }
+                : {
+                    backgroundColor: `color-mix(in oklab, var(--${color}) 22%, var(--background))`,
+                    color: `var(--${color})`,
+                  }
             }
           >
             <Icon className="h-4 w-4" />
@@ -856,11 +1200,21 @@ export function StatCard({
   );
 }
 
-export function PageTitle({ eyebrow, title, action }: { eyebrow?: string; title: string; action?: ReactNode }) {
+export function PageTitle({
+  eyebrow,
+  title,
+  action,
+}: {
+  eyebrow?: string;
+  title: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
       <div>
-        {eyebrow && <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{eyebrow}</p>}
+        {eyebrow && (
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{eyebrow}</p>
+        )}
         <h1 className="mt-1 font-display text-3xl md:text-4xl text-foreground">{title}</h1>
       </div>
       {action}

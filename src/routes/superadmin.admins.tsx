@@ -1,14 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { buildMeta } from "@/lib/seo/metadata";
 import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Eye, EyeOff, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,9 +50,17 @@ import {
   softSelectTrigger,
   statusPill,
 } from "@/lib/dash-ui";
+import { track } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 export const Route = createFileRoute("/superadmin/admins")({
-  head: () => ({ meta: [{ title: "Administrateurs   Superadmin" }] }),
+  head: () =>
+    buildMeta({
+      title: "Superadmin · Administrateurs",
+      description: "Gestion des administrateurs de la plateforme et de leurs centres rattachés.",
+      path: "/superadmin/admins",
+      noindex: true,
+    }),
   component: SuperadminAdmins,
 });
 
@@ -116,6 +120,7 @@ function SuperadminAdmins() {
         },
       }),
     onSuccess: () => {
+      track("user_invited", { role: "superadmin" });
       toast.success(ta.created);
       setDialogOpen(false);
       invalidate();
@@ -143,9 +148,9 @@ function SuperadminAdmins() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) =>
-      deleteAdmin({ data: { token: await getAccessToken(), id } }),
+    mutationFn: async (id: string) => deleteAdmin({ data: { token: await getAccessToken(), id } }),
     onSuccess: () => {
+      track("user_removed", { role: "superadmin" });
       toast.success(ta.deleted);
       setToDelete(null);
       invalidate();

@@ -1,3 +1,4 @@
+import { buildMeta } from "@/lib/seo/metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Sticker } from "@/components/skema/bits";
@@ -17,7 +18,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { softInput as inputClass, dialogSurface, labelClass } from "@/lib/dash-ui";
-import { listPlanifications, createPlanification, type PlanificationInput } from "@/lib/server-planifications";
+import {
+  listPlanifications,
+  createPlanification,
+  type PlanificationInput,
+} from "@/lib/server-planifications";
 import {
   listHolidays,
   createHoliday,
@@ -30,6 +35,8 @@ import {
   type SchoolVacation,
 } from "@/lib/server-holidays-vacations";
 import { toast } from "sonner";
+import { track, trackFirstOnce } from "@/lib/analytics";
+import { amountBucket, paymentMethod, errorType } from "@/lib/analytics";
 
 type PlanifTone = "violet" | "emerald" | "amber" | "zinc";
 
@@ -43,13 +50,29 @@ type Planif = {
 };
 
 export const Route = createFileRoute("/dashboard/calendar")({
-  head: () => ({ meta: [{ title: "Calendrier   CRM" }] }),
+  head: () =>
+    buildMeta({
+      title: "Calendrier · SKEMA",
+      description: "Calendrier de l'école : jours fériés, vacances scolaires et planifications.",
+      path: "/dashboard/calendar",
+      noindex: true,
+    }),
   component: CrmCalendrier,
 });
 
 const MOIS_FR = [
-  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
 ];
 
 const JOURS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -102,11 +125,23 @@ function EventChip({
 }
 
 function toneColor(tone: string) {
-  return tone === "violet" ? "border-l-[#6C4DF6]" : tone === "emerald" ? "border-l-[#17B3A6]" : tone === "amber" ? "border-l-[#FFB347]" : "border-l-[#4B5563]";
+  return tone === "violet"
+    ? "border-l-[#6C4DF6]"
+    : tone === "emerald"
+      ? "border-l-[#17B3A6]"
+      : tone === "amber"
+        ? "border-l-[#FFB347]"
+        : "border-l-[#4B5563]";
 }
 
 function dotColor(tone: string) {
-  return tone === "violet" ? "bg-[#6C4DF6]" : tone === "emerald" ? "bg-[#17B3A6]" : tone === "amber" ? "bg-[#FFB347]" : "bg-[#4B5563]";
+  return tone === "violet"
+    ? "bg-[#6C4DF6]"
+    : tone === "emerald"
+      ? "bg-[#17B3A6]"
+      : tone === "amber"
+        ? "bg-[#FFB347]"
+        : "bg-[#4B5563]";
 }
 
 function vacLabelForIso(iso: string, vacs: SchoolVacation[]): string | null {
@@ -166,47 +201,77 @@ function CrmCalendrier() {
 
   const createPlanifMutation = useMutation({
     mutationFn: (input: { data: PlanificationInput }) => createPlanification(input),
-    onSuccess: () => { forceRefetch(); toast.success("Planification ajoutée"); },
+    onSuccess: () => {
+      forceRefetch();
+      track("planning_created", { planning_type: "planification", role: "admin" });
+      trackFirstOnce("planning_created", "first_planning_created");
+      toast.success("Planification ajoutée");
+    },
     onError: handleMutError,
   });
 
   const createHolidayMutation = useMutation({
     mutationFn: (input: { data: { date: string; label: string } }) => createHoliday(input),
-    onSuccess: () => { forceRefetch(); toast.success("Jour férié ajouté"); },
+    onSuccess: () => {
+      forceRefetch();
+      track("planning_created", { planning_type: "holiday", role: "admin" });
+      toast.success("Jour férié ajouté");
+    },
     onError: handleMutError,
   });
 
   const deleteHolidayMutation = useMutation({
     mutationFn: (id: string) => deleteHoliday({ data: id }),
-    onSuccess: () => { forceRefetch(); toast.success("Jour férié supprimé"); },
+    onSuccess: () => {
+      forceRefetch();
+      track("planning_deleted", { planning_type: "holiday", role: "admin" });
+      toast.success("Jour férié supprimé");
+    },
     onError: handleMutError,
   });
 
   const syncMutation = useMutation({
-    mutationFn: () => syncPublicHolidays({ data: [new Date().getFullYear(), new Date().getFullYear() + 1] }),
-    onSuccess: (result) => { forceRefetch(); toast.success(`${result.added} jour(s) férié(s) synchronisé(s)`); },
+    mutationFn: () =>
+      syncPublicHolidays({ data: [new Date().getFullYear(), new Date().getFullYear() + 1] }),
+    onSuccess: (result) => {
+      forceRefetch();
+      toast.success(`${result.added} jour(s) férié(s) synchronisé(s)`);
+    },
     onError: handleMutError,
   });
 
   const createVacationMutation = useMutation({
-    mutationFn: (input: { data: { start_date: string; end_date: string; label: string } }) => createSchoolVacation(input),
-    onSuccess: () => { forceRefetch(); toast.success("Vacance ajoutée"); },
+    mutationFn: (input: { data: { start_date: string; end_date: string; label: string } }) =>
+      createSchoolVacation(input),
+    onSuccess: () => {
+      forceRefetch();
+      track("planning_created", { planning_type: "vacation", role: "admin" });
+      toast.success("Vacance ajoutée");
+    },
     onError: handleMutError,
   });
 
   const deleteVacationMutation = useMutation({
     mutationFn: (id: string) => deleteSchoolVacation({ data: id }),
-    onSuccess: () => { forceRefetch(); toast.success("Vacance supprimée"); },
+    onSuccess: () => {
+      forceRefetch();
+      track("planning_deleted", { planning_type: "vacation", role: "admin" });
+      toast.success("Vacance supprimée");
+    },
     onError: handleMutError,
   });
 
   const prevMonth = () => {
-    if (month === 0) { setMonth(11); setYear((y) => y - 1); }
-    else setMonth((m) => m - 1);
+    if (month === 0) {
+      setMonth(11);
+      setYear((y) => y - 1);
+    } else setMonth((m) => m - 1);
   };
   const nextMonth = () => {
-    if (month === 11) { setMonth(0); setYear((y) => y + 1); }
-    else setMonth((m) => m + 1);
+    if (month === 11) {
+      setMonth(0);
+      setYear((y) => y + 1);
+    } else setMonth((m) => m + 1);
   };
   const goToday = () => {
     setYear(today.getFullYear());
@@ -247,7 +312,11 @@ function CrmCalendrier() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <header className="relative">
-        <Sticker name="calendarPin" tilt={-6} className="pointer-events-none absolute -top-4 right-0 hidden w-16 opacity-90 sm:block" />
+        <Sticker
+          name="calendarPin"
+          tilt={-6}
+          className="pointer-events-none absolute -top-4 right-0 hidden w-16 opacity-90 sm:block"
+        />
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Calendrier
         </p>
@@ -269,10 +338,12 @@ function CrmCalendrier() {
           </button>
         </span>
         <span className="inline-flex items-center gap-2 rounded-full bg-[#FFB347]/40 px-3 py-1.5 text-xs font-semibold text-[#B5760E]">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#FFB347]" /> Vacances ({schoolVacations.length})
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FFB347]" /> Vacances (
+          {schoolVacations.length})
         </span>
         <span className="inline-flex items-center gap-2 rounded-full bg-[#001B3D]/10 px-3 py-1.5 text-xs font-semibold text-[#001B3D]">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#6C4DF6]" /> Planification ({planifications.length})
+          <span className="h-2.5 w-2.5 rounded-full bg-[#6C4DF6]" /> Planification (
+          {planifications.length})
         </span>
         <span className="ml-auto hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
           <AlertCircle className="h-3.5 w-3.5" />
@@ -402,8 +473,7 @@ function CrmCalendrier() {
             </div>
           </div>
 
-          {(holidaysDuMois.length > 0 ||
-            planifsDuMois.length > 0) && (
+          {(holidaysDuMois.length > 0 || planifsDuMois.length > 0) && (
             <div className="mt-5 space-y-2 border-t border-[#001B3D]/10 pt-4">
               {holidaysDuMois.map((c) => (
                 <p key={`h-${c.day}`} className="flex items-center gap-2 text-sm text-foreground">
@@ -578,7 +648,9 @@ function DayDetailModal({
                     <span className="ml-2 text-xs text-muted-foreground">{p.time.slice(0, 5)}</span>
                   </div>
                   {p.detail && (
-                    <span className="ml-auto truncate text-xs text-muted-foreground">{p.detail}</span>
+                    <span className="ml-auto truncate text-xs text-muted-foreground">
+                      {p.detail}
+                    </span>
                   )}
                 </div>
               ))}
@@ -594,7 +666,9 @@ function DayDetailModal({
                   onClick={() => setMode(t.key)}
                   className={cn(
                     "rounded-full px-3 py-1 text-xs font-medium transition",
-                    mode === t.key ? "bg-[#001B3D] text-white" : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    mode === t.key
+                      ? "bg-[#001B3D] text-white"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80",
                   )}
                 >
                   {t.label}
@@ -614,7 +688,9 @@ function DayDetailModal({
                 }}
               >
                 <div className="space-y-1">
-                  <Label htmlFor="modal-h-label" className={labelClass}>Nom du jour férié</Label>
+                  <Label htmlFor="modal-h-label" className={labelClass}>
+                    Nom du jour férié
+                  </Label>
                   <Input
                     id="modal-h-label"
                     value={hLabel}
@@ -647,7 +723,9 @@ function DayDetailModal({
                 }}
               >
                 <div className="space-y-1">
-                  <Label htmlFor="modal-v-end" className={labelClass}>Date de fin</Label>
+                  <Label htmlFor="modal-v-end" className={labelClass}>
+                    Date de fin
+                  </Label>
                   <Input
                     id="modal-v-end"
                     type="date"
@@ -658,7 +736,9 @@ function DayDetailModal({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="modal-v-label" className={labelClass}>Nom</Label>
+                  <Label htmlFor="modal-v-label" className={labelClass}>
+                    Nom
+                  </Label>
                   <Input
                     id="modal-v-label"
                     value={vLabel}
@@ -697,7 +777,9 @@ function DayDetailModal({
                 }}
               >
                 <div className="space-y-1">
-                  <Label htmlFor="modal-p-title" className={labelClass}>Titre</Label>
+                  <Label htmlFor="modal-p-title" className={labelClass}>
+                    Titre
+                  </Label>
                   <Input
                     id="modal-p-title"
                     value={pTitle}
@@ -708,7 +790,9 @@ function DayDetailModal({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="modal-p-time" className={labelClass}>Horaire</Label>
+                  <Label htmlFor="modal-p-time" className={labelClass}>
+                    Horaire
+                  </Label>
                   <Input
                     id="modal-p-time"
                     type="time"
@@ -730,7 +814,9 @@ function DayDetailModal({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="modal-p-tone" className={labelClass}>Couleur</Label>
+                  <Label htmlFor="modal-p-tone" className={labelClass}>
+                    Couleur
+                  </Label>
                   <select
                     id="modal-p-tone"
                     value={pTone}
