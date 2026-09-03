@@ -29,6 +29,7 @@ function validate(input: unknown): DemoRequest {
   const plan = clean(data.plan);
 
   if (!contactName) throw new Error("Votre nom complet est requis.");
+  if (!plan) throw new Error("Choisissez une formule avant d'envoyer la demande.");
   if (!center) throw new Error("Le nom de l'établissement est requis.");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Adresse email invalide.");
   if (phone && phone.replace(/\D/g, "").length < 8) throw new Error("Numéro de téléphone invalide.");

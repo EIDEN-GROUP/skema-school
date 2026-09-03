@@ -352,9 +352,19 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
     "w-full rounded-xl border border-white/15 bg-white/5 px-3.5 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/35 focus:border-turquoise focus:bg-white/10 [color-scheme:dark]";
   const label = "mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-white/45";
 
+  const goToPricing = () => {
+    if (typeof document !== "undefined")
+      document.getElementById("tarifs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!selection) {
+      setError("Choisissez d'abord une formule dans la section Tarifs.");
+      goToPricing();
+      return;
+    }
     setState("sending");
     try {
       const res = await submitDemoRequest({ data: { ...form, plan: picked?.line ?? "" } });
@@ -395,7 +405,7 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
 
   return (
     <form onSubmit={submit} className="mt-8 space-y-4">
-      {picked && (
+      {picked ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-turquoise/25 bg-turquoise/10 px-4 py-3">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-turquoise">
             Formule choisie
@@ -410,6 +420,16 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
             retirer
           </button>
         </div>
+      ) : (
+        <button
+          type="button"
+          onClick={goToPricing}
+          className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-white/25 bg-white/5 px-4 py-3 text-left text-sm text-white/60 transition-colors hover:border-white/40 hover:text-white"
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-ocre">Étape 1</span>
+          Choisissez une formule dans la section Tarifs
+          <ChevronRight className="ml-auto h-4 w-4" />
+        </button>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -489,12 +509,15 @@ function DemoForm({ selection, onClear }: { selection: Selection | null; onClear
 
       <button
         type="submit"
-        disabled={state === "sending"}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-corail px-8 py-4 text-base font-bold text-white shadow-[0_22px_50px_-16px_rgba(255,102,107,0.7)] transition-transform hover:-translate-y-0.5 disabled:opacity-60 sm:w-auto"
+        disabled={state === "sending" || !selection}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-corail px-8 py-4 text-base font-bold text-white shadow-[0_22px_50px_-16px_rgba(255,102,107,0.7)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 sm:w-auto"
       >
         {state === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {state === "sending" ? "Envoi..." : "Réserver ma démo gratuite"}
       </button>
+      {!selection ? (
+        <p className="text-xs text-white/45">Sélectionnez une formule pour activer l&apos;envoi.</p>
+      ) : null}
     </form>
   );
 }
