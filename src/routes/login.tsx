@@ -125,7 +125,7 @@ function Login() {
       />
       <img
         src={ctaVibe}
-        alt=""
+        alt="Illustration décorative"
         aria-hidden
         width={2000}
         height={2000}
