@@ -29,7 +29,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Qu'est-ce que SKEMA ?",
     answer:
-      "SKEMA est un logiciel de gestion tout-en-un pour les écoles privées, les centres de soutien et les établissements scolaires. Il centralise les familles et les élèves, les frais de scolarité et les paiements, le planning et les rendez-vous, les rapports et la communication avec les parents, dans une seule interface.",
+      "SKEMA est une solution de gestion tout-en-un pour les écoles privées, les centres de soutien et les établissements scolaires. Il centralise les familles et les élèves, les frais de scolarité et les paiements, le planning et les rendez-vous, les rapports et la communication avec les parents, dans une seule interface.",
   },
   {
     question: "Pour qui SKEMA est-il conçu ?",
@@ -71,7 +71,7 @@ const FAQ_ITEMS: FaqItem[] = [
 export const Route = createFileRoute("/")({
   head: () =>
     buildMeta({
-      title: "SKEMA · Logiciel de gestion pour écoles privées au Maroc",
+      title: "SKEMA · Solution de gestion pour écoles privées au Maroc",
       description:
         "SKEMA centralise élèves, notes, absences, emplois du temps et facturation de votre établissement privé : maternelle, primaire, collège et lycée. Démo gratuite.",
       path: "/",
