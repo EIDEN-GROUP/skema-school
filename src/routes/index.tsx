@@ -907,7 +907,7 @@ function Landing() {
               <img
                 src={photoClasse}
                 alt="Élèves et enseignante en classe"
-                loading="lazy"
+                fetchpriority="high"
                 width={1024}
                 height={1280}
                 className="h-40 w-full rounded-[10px] object-cover"
